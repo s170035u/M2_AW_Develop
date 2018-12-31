@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<package>
+  <name>occlusion</name>
+  <version>1.9.1</version>
+  <description>My occlusion calc</description>
+  <maintainer email="s170035u@st.go.tuat.ac.jp">takashi nohara</maintainer>
+  <license>BSD</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <!-- C ++プログラマがROS Topics、Services、およびParametersと迅速にインターフェースできるようにするクライアントライブラリを提供 -->
+  <build_depend>roscpp</build_depend>
+  <!-- このパッケージは、カメラや走査型レーザー距離計など、一般的に使用されるセンサーへのメッセージを定義します。 -->
+  <build_depend>sensor_msgs</build_depend>
+  <!-- nav_msgsは、ナビゲーションスタックと対話するために使用される共通のメッセージを定義します。 -->
+  <build_depend>nav_msgs</build_depend>
+  <!-- PCLデータ型およびROSメッセージ型からの変換を提供します -->
+  <build_depend>pcl_conversions</build_depend>
+  <!-- PCL（Point Cloud Library）ROSインターフェーススタック。 PCL-ROSは、n-D点群とROSでの3Dジオメトリ処理を含む3Dアプリケーションに適したブリッジです。 -->
+  <build_depend>pcl_ros</build_depend>
+  <!-- グリッドマップライブラリ用のROSインタフェース。複数のデータレイヤを持つ2次元グリッドマップを管理します。 -->
+  <build_depend>grid_map_ros</build_depend>
+  <!-- グリッドマップとOpenCV画像間の変換 -->
+  <build_depend>grid_map_cv</build_depend>
+  <!-- bagファイルからグリッドマップを読み込んで公開 -->
+  <build_depend>grid_map_msgs</build_depend>
+  <!-- Autoware 定義：ADASマップ（Vectorマップ）パッケージ -->
+  <build_depend>vector_map</build_depend>
+  <!-- 座標系管理＆座標変換ライブラリ -->
+  <build_depend>tf</build_depend>
+  <!-- Qt ライブラリ：QtはAutowareビルドに必要 -->
+  <build_depend>qtbase5-dev</build_depend>
+  <!--  -->
+  <build_depend>waypoint_follower</build_depend>
+  <build_depend>autoware_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>vector_map</build_depend>
+  <!-- これはROS ImageメッセージとOpenCVイメージを変換するCvBridgeをインクルード -->
+  <!-- <build_depend>cv_bridge</build_depend> -->
+  <!-- image_transportは常に画像のサブスクライブとパブリッシュに使用されるべき -->
+  <!--<build_depend>image_transport</build_depend> -->
+
+  <!-- run_depend は build_depend と同じになる -->
+  <run_depend>roscpp</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>nav_msgs</run_depend>
+  <run_depend>pcl_conversions</run_depend>
+  <run_depend>pcl_ros</run_depend>
+  <run_depend>grid_map_ros</run_depend>
+  <run_depend>grid_map_cv</run_depend>
+  <run_depend>grid_map_msgs</run_depend>
+  <run_depend>vector_map</run_depend>
+  <run_depend>tf</run_depend>
+  
+ 
+  
+    <run_depend>autoware_msgs</run_depend>
+    
+    <run_depend>libqt5-core</run_depend>
+
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>waypoint_follower</run_depend>
+  <run_depend>autoware_msgs</run_depend>
+  <run_depend>vector_map</run_depend>
+
+
+  <export>
+
+  </export>
+</package>

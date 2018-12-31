@@ -1,0 +1,14 @@
+<launch>
+  
+  <arg name="points_topic" default="points_no_ground" />
+  
+  <node pkg="coi_planner" type="offset_operation" name="offset_operation" output="screen">
+     <param name="points_topic" value="$(arg points_topic)" />
+     <param name="max_offset" value="0.5" />
+
+     <param name="do_offset" value="true" />
+     <param name="do_slowdown" value="false" />
+     
+  </node>
+
+</launch>
