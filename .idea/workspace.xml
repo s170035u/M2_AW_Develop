@@ -9,7 +9,16 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d4293fed-7711-4303-af63-595c301f77ec" name="Default Changelist" comment="" />
+    <list default="true" id="d4293fed-7711-4303-af63-595c301f77ec" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.vscode/settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/settings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/New_PotentialField/CMakeLists.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/New_PotentialField/interface.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/New_PotentialField/launch/offset_operation.launch" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/New_PotentialField/nodes/new_potential_field.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/New_PotentialField/package.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/occlusion/package.xml" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/package.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/occlusion/src/occlusion.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/src/occlusion.cpp" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -26,6 +35,9 @@
       </usages-collector>
     </session>
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="JsBuildToolGruntFileManager" detection-done="true" sorting="DEFINITION_ORDER" />
   <component name="JsBuildToolPackageJson" detection-done="true" sorting="DEFINITION_ORDER" />
   <component name="JsGulpfileManager">
@@ -37,6 +49,7 @@
     <option name="width" value="666" />
     <option name="height" value="775" />
   </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
     <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
@@ -93,6 +106,7 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1320" height="784" extended-state="6" />
+    <editor active="true" />
     <layout>
       <window_info id="Favorites" side_tool="true" />
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.25" />

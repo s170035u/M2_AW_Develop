@@ -117,6 +117,11 @@ bool RosRoadOccupancyProcessorApp::LoadRoadLayerFromMat(grid_map::GridMap &in_gr
 
 		return true;
 	}
+}
+
+RosRoadOccupancyProcessorApp::RosRoadOccupancyProcessorApp()
+{
+	radial_dividers_num_ = ceil(360 / radia
 
 	ROS_INFO("[%s] Empty Image received.", __APP_NAME__);
 	return false;
