@@ -10,13 +10,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d4293fed-7711-4303-af63-595c301f77ec" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.vscode/settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/settings.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/New_PotentialField/CMakeLists.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/New_PotentialField/interface.yaml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/New_PotentialField/launch/offset_operation.launch" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/New_PotentialField/nodes/new_potential_field.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/New_PotentialField/package.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/occlusion/package.xml" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/package.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/occlusion/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/occlusion/include/occlusion.h" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/include/occlusion.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/occlusion/src/occlusion.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/src/occlusion.cpp" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />

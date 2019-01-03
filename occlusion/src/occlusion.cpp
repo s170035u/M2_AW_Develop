@@ -173,7 +173,7 @@ void RosRoadOccupancyProcessorApp::PublishGridMap(grid_map::GridMap &in_grid_map
 	}
 	else
 	{
-		ROS_INFO("[%s] Empty GridMap. It might still be loading or it does not contain valid data.", __APP_NAME__);
+		ROS_INFO("[%s] Empty GridMap. It might still be loading or it does not contain valid data.", occlusion);
 	}
 }
 
@@ -190,7 +190,7 @@ bool RosRoadOccupancyProcessorApp::LoadRoadLayerFromMat(grid_map::GridMap &in_gr
 		return true;
 	}
 
-	ROS_INFO("[%s] Empty Image received.", __APP_NAME__);
+	ROS_INFO("[%s] Empty Image received.", occlusion);
 	return false;
 }
 
@@ -248,13 +248,13 @@ void RosRoadOccupancyProcessorApp::SetPointInGridMap(grid_map::GridMap &in_grid_
 	}
 }
 
-void RosRoadOccupancyProcessorApp::GridMapCallback(const grid_map_msgs::GridMap& in_message)
+void Occlusion::GridMapCallback(const grid_map_msgs::GridMap& in_message)
 {
 	grid_map::GridMap input_grid;
 	grid_map::GridMapRosConverter::fromMessage(in_message, input_grid);
 
 	grid_map::GridMapCvConverter::toImage<unsigned char, 1>(input_grid,
-	                                                        wayarea_layer_name_,
+	                                                        occupancy_layer_name_,
 	                                                        CV_8UC1,
 	                                                        grid_min_value_,
 	                                                        grid_max_value_,
@@ -265,6 +265,29 @@ void RosRoadOccupancyProcessorApp::GridMapCallback(const grid_map_msgs::GridMap&
 	input_gridmap_resolution_   = input_grid.getResolution();
 	input_gridmap_position_     = input_grid.getPosition();
 }
+// Detected Object メッセージを受け取った時：callback関数
+void Occlusion::GridMapCallback(const grid_map_msgs::GridMap& in_message)
+{
+
+	grid_map::GridMap input_grid;
+	grid_map::GridMapRosConverter::fromMessage(in_message, input_grid);
+
+	grid_map::GridMapCvConverter::toImage<unsigned char, 1>(input_grid,
+	                                                        occupancy_layer_name_,
+	                                                        CV_8UC1,
+	                                                        grid_min_value_,
+	                                                        grid_max_value_,
+	                                                        road_wayarea_original_mat_);
+
+	input_gridmap_frame_        = input_grid.getFrameId();
+	input_gridmap_length_       = input_grid.getLength();
+	input_gridmap_resolution_   = input_grid.getResolution();
+	input_gridmap_position_     = input_grid.getPosition();
+}
+
+
+
+
 
 void RosRoadOccupancyProcessorApp::ConvertPointCloud(const pcl::PointCloud<pcl::PointXYZI>& in_pointcloud,
                                                      const std::string& in_targetframe,
@@ -374,53 +397,65 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 	//std::cout << "time: " << usec / 1000.0 << " [msec]" << std::endl;
 
 }
-
-void RosRoadOccupancyProcessorApp::InitializeRosIo(ros::NodeHandle &in_private_handle)
+// 
+void Occlusion::init(ros::NodeHandle &in_private_handle)
 {
-	//get params
+	// パラメータ取得
 	std::string points_ground_topic_str, points_no_ground_topic_str, wayarea_topic_str;
 
-	in_private_handle.param<std::string>("points_ground_src", points_ground_topic_str, "points_ground");
-	ROS_INFO("[%s] points_ground_src: %s",__APP_NAME__, points_ground_topic_str.c_str());
+	/* ******************************************************************************************
+	 * param（）はgetParam（）に似ていますが、パラメータを取得できなかった場合のデフォルト値を指定できます。
+	 * コンパイラが文字列型のヒントを要求することがあります。
+	 * 
+	 ******************************************************************************************** */
 
+	// パラメータ取得：<arg name="occupancy_topic_src" default="gridmap_road_status" />
+	// <!-- Road Occupancy Processor が配信しているトピック名 -->
+	in_private_handle.param<std::string>("occupancy_topic_src", occupancy_topic_str, "gridmap_road_status");
+	ROS_INFO("[%s] occupancy_topic_src: %s",occlusion, occupancy_topic_str.c_str());
+	// パラメータ取得：<arg name="occupancy_layer_name" default="road_status" />
+	// <!-- Road Occupancy Processor の GridMap クラスメッセージにおけるレイヤー名 -->
+	in_private_handle.param<std::string>("occupancy_layer_name", occupancy_layer_name_, "road_status");
+	ROS_INFO("[%s] occupancy_layer_name: %s",occlusion, occupancy_layer_name_.c_str());
+    // パラメータ取得；<arg name="output_layer_name" default="road_occlusion" />
+	// <!-- Occlusion が配信する GridMapクラスメッセージにおけるレイヤー名 -->
+	in_private_handle.param<std::string>("output_layer_name", output_layer_name_, "road_occlusion");
+	ROS_INFO("[%s] output_layer_name: %s",occlusion, output_layer_name_.c_str());
+	// 
 	in_private_handle.param<std::string>("points_no_ground_src", points_no_ground_topic_str, "points_no_ground");
-	ROS_INFO("[%s] points_no_ground_src: %s",__APP_NAME__, points_no_ground_topic_str.c_str());
+	ROS_INFO("[%s] points_no_ground_src: %s",occlusion, points_no_ground_topic_str.c_str());
 
 	in_private_handle.param<std::string>("wayarea_topic_src", wayarea_topic_str, "grid_map_wayarea");
-	ROS_INFO("[%s] wayarea_topic_src: %s",__APP_NAME__, wayarea_topic_str.c_str());
+	ROS_INFO("[%s] wayarea_topic_src: %s",occlusion, wayarea_topic_str.c_str());
 
-	in_private_handle.param<std::string>("wayarea_layer_name", wayarea_layer_name_, "wayarea");
-	ROS_INFO("[%s] wayarea_layer_name: %s",__APP_NAME__, wayarea_layer_name_.c_str());
-
-	in_private_handle.param<std::string>("output_layer_name", output_layer_name_, "road_status");
-	ROS_INFO("[%s] output_layer_name: %s",__APP_NAME__, output_layer_name_.c_str());
+	
 
 	in_private_handle.param<int>("road_unknown_value", OCCUPANCY_ROAD_UNKNOWN, 128);
-	ROS_INFO("[%s] road_unknown_value: %d",__APP_NAME__, OCCUPANCY_ROAD_UNKNOWN);
+	ROS_INFO("[%s] road_unknown_value: %d",occlusion, OCCUPANCY_ROAD_UNKNOWN);
 
 	in_private_handle.param<int>("road_free_value", OCCUPANCY_ROAD_FREE, 75);
-	ROS_INFO("[%s] road_free_value: %d",__APP_NAME__, OCCUPANCY_ROAD_FREE);
+	ROS_INFO("[%s] road_free_value: %d",occlusion, OCCUPANCY_ROAD_FREE);
 
 	in_private_handle.param<int>("road_occupied_value", OCCUPANCY_ROAD_OCCUPIED, 0);
-	ROS_INFO("[%s] road_occupied_value: %d",__APP_NAME__, OCCUPANCY_ROAD_OCCUPIED);
+	ROS_INFO("[%s] road_occupied_value: %d",occlusion, OCCUPANCY_ROAD_OCCUPIED);
 
 	in_private_handle.param<int>("no_road_value", OCCUPANCY_NO_ROAD, 255);
-	ROS_INFO("[%s] no_road_value: %d",__APP_NAME__, OCCUPANCY_NO_ROAD);
+	ROS_INFO("[%s] no_road_value: %d",occlusion, OCCUPANCY_NO_ROAD);
 
 	//generate subscribers and sychronizers
 	cloud_ground_subscriber_ = new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_handle_,
 	                                                                                     points_ground_topic_str, 1);
-	ROS_INFO("[%s] Subscribing to... %s",__APP_NAME__, points_ground_topic_str.c_str());
+	ROS_INFO("[%s] Subscribing to... %s",occlusion, points_ground_topic_str.c_str());
 	cloud_no_ground_subscriber_ = new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_handle_,
 	                                                                                        points_no_ground_topic_str, 1);
-	ROS_INFO("[%s] Subscribing to... %s",__APP_NAME__, points_no_ground_topic_str.c_str());
+	ROS_INFO("[%s] Subscribing to... %s",occlusion, points_no_ground_topic_str.c_str());
 
 	/*gridmap_subscriber_ = new message_filters::Subscriber<grid_map_msgs::GridMap>(node_handle_,
 	                                                                              wayarea_topic_str, 1);
 	gridmap_subscriber_->registerCallback(boost::bind(&RosRoadOccupancyProcessorApp::PointsCallback, this));*/
 	gridmap_subscriber_ = node_handle_.subscribe(wayarea_topic_str, 10,
 	                                                             &RosRoadOccupancyProcessorApp::GridMapCallback, this);
-	ROS_INFO("[%s] Subscribing to... %s",__APP_NAME__, wayarea_topic_str.c_str());
+	ROS_INFO("[%s] Subscribing to... %s",occlusion, wayarea_topic_str.c_str());
 
 	cloud_synchronizer_ =
 			new message_filters::Synchronizer<SyncPolicyT>(SyncPolicyT(100),
@@ -430,10 +465,10 @@ void RosRoadOccupancyProcessorApp::InitializeRosIo(ros::NodeHandle &in_private_h
 
 	//register publishers
 	publisher_grid_map_= node_handle_.advertise<grid_map_msgs::GridMap>("gridmap_road_status", 1);
-	ROS_INFO("[%s] Publishing GridMap in gridmap_road_status",__APP_NAME__);
+	ROS_INFO("[%s] Publishing GridMap in gridmap_road_status",occlusion);
 
 	publisher_occupancy_grid_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("occupancy_road_status", 1);
-	ROS_INFO("[%s] Publishing Occupancy grid in occupancy_road_status",__APP_NAME__);
+	ROS_INFO("[%s] Publishing Occupancy grid in occupancy_road_status",occlusion);
 }
 
 tf::StampedTransform
@@ -476,14 +511,19 @@ void RosRoadOccupancyProcessorApp::Run()
 
 	InitializeRosIo(private_node_handle);
 
-	ROS_INFO("[%s] Ready. Waiting for data...",__APP_NAME__);
+	ROS_INFO("[%s] Ready. Waiting for data...",occlusion);
 
 	ros::spin();
 
-	ROS_INFO("[%s] END",__APP_NAME__);
+	ROS_INFO("[%s] END",occlusion);
 }
 
 RosRoadOccupancyProcessorApp::RosRoadOccupancyProcessorApp()
 {
 	radial_dividers_num_ = ceil(360 / radial_divider_angle_);
+}
+// 検出された物体情報を取り出す
+Occlusion::Occlusion()
+{
+
 }
