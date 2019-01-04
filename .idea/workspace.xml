@@ -9,11 +9,7 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d4293fed-7711-4303-af63-595c301f77ec" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/occlusion/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/occlusion/include/occlusion.h" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/include/occlusion.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/occlusion/src/occlusion.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/occlusion/src/occlusion.cpp" afterDir="false" />
-    </list>
+    <list default="true" id="d4293fed-7711-4303-af63-595c301f77ec" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,6 +20,7 @@
     <session id="279838398">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
+          <entry key="project.closed" value="1" />
           <entry key="project.open.time.1" value="1" />
           <entry key="project.opened" value="1" />
         </counts>
@@ -101,7 +98,6 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1320" height="784" extended-state="6" />
-    <editor active="true" />
     <layout>
       <window_info id="Favorites" side_tool="true" />
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.25" />

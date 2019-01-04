@@ -158,19 +158,33 @@ void RosRoadOccupancyProcessorApp::ConvertXYZIToRTZ(const pcl::PointCloud<pcl::P
 
 void RosRoadOccupancyProcessorApp::PublishGridMap(grid_map::GridMap &in_grid_map, const std::string& in_layer_publish)
 {
+	// gridmapにパブリッシュするレイヤー"occlusion"を設定する
+	gridmap_setFrameId("occlusion");
+	// 
+	gridmap_()
+
+
+	// 配信用のレイヤーがデータに含まれている場合
 	if (in_grid_map.exists(in_layer_publish))
 	{
+		// grid_map_msg/GridMap.msg型の変数：ros_gridmap_message
 		grid_map_msgs::GridMap ros_gridmap_message;
+		// 
 		nav_msgs::OccupancyGrid ros_occupancygrid_message;
+		// GridMap型のROSトピックを生成する：引数（グリッドマップ，メッセージ）
 		grid_map::GridMapRosConverter::toMessage(in_grid_map, ros_gridmap_message);
+		// 
 		grid_map::GridMapRosConverter::toOccupancyGrid(in_grid_map,
 		                                               in_layer_publish,
 		                                               grid_min_value_,
 		                                               grid_max_value_,
 		                                               ros_occupancygrid_message);
+		// パブリッシュする 
 		publisher_grid_map_.publish(ros_gridmap_message);
+		// パブリッシュする
 		publisher_occupancy_grid_.publish(ros_occupancygrid_message);
 	}
+	// 配信用のレイヤーがデータに含まれていない場合
 	else
 	{
 		ROS_INFO("[%s] Empty GridMap. It might still be loading or it does not contain valid data.", occlusion);
@@ -247,7 +261,7 @@ void RosRoadOccupancyProcessorApp::SetPointInGridMap(grid_map::GridMap &in_grid_
 		cv::circle(in_grid_image, cv::Point(cv_point.x, cv_point.y), radius, cv::Scalar(in_value), fill);
 	}
 }
-
+// 
 void Occlusion::GridMapCallback(const grid_map_msgs::GridMap& in_message)
 {
 	grid_map::GridMap input_grid;
@@ -262,7 +276,11 @@ void Occlusion::GridMapCallback(const grid_map_msgs::GridMap& in_message)
 
 	input_gridmap_frame_        = input_grid.getFrameId();
 	input_gridmap_length_       = input_grid.getLength();
+	// Get the resolution of the grid map.
+	// Returns : resolution of the grid map in the xy plane [m/cell].
+	// Road Occupancy Processorで使用されている解像度を選択する
 	input_gridmap_resolution_   = input_grid.getResolution();
+	// 
 	input_gridmap_position_     = input_grid.getPosition();
 }
 // Detected Object メッセージを受け取った時：callback関数
@@ -282,7 +300,42 @@ void Occlusion::GridMapCallback(const grid_map_msgs::GridMap& in_message)
 	input_gridmap_frame_        = input_grid.getFrameId();
 	input_gridmap_length_       = input_grid.getLength();
 	input_gridmap_resolution_   = input_grid.getResolution();
+
+
+
 	input_gridmap_position_     = input_grid.getPosition();
+}
+void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg)
+{
+	// データをGridMapに格納していく
+	ros::Time time = ros::Time::now();
+	// itにはIndexの集まりが保存される
+	for (GridMapIterator it(gridmap_); !it.isPastEnd(); ++it) {
+		// あるインデックスに対応するグリッドマップフレーム上での位置：宣言（初期化）
+		Position grid_position;
+		// あるインデックスに対応するグリッドマップフレーム上での位置：代入
+		gridmap_.getPosition(*it, grid_position);
+		// レイヤー"occlusion"の中のインデックスitにデータを格納
+		gridmap_.at("occlusion", *it) = 1;// ここに計算式を組み込む
+		//
+
+	}
+	// 検出した物体の数すべてに対して反復
+	for (int i(0); i < (int)obj_msg->objects.size(); ++i) {
+	// 位置X
+	double pos_x = obj_msg->objects.at(i).pose.position.x;
+    // 位置Y  
+	double pos_y = obj_msg->objects.at(i).pose.position.y;
+    // 物体のX方向長さ
+    double len_x = obj_msg->objects.at(i).dimensions.x;
+    // 物体のY方向長さ
+    double len_y = obj_msg->objects.at(i).dimensions.y;
+    // 物体のZ方向長さ
+    double len_z = obj_msg->objects.at(i).dimensions.z;
+    // クオータニオンからRoll,Yaw,Pitchへの変換
+    double r, p, y;
+
+	}
 }
 
 
@@ -305,6 +358,32 @@ void RosRoadOccupancyProcessorApp::ConvertPointCloud(const pcl::PointCloud<pcl::
 		out_pointcloud = in_pointcloud;
 	}
 };
+// 
+void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& gridmap_ros_in_message)
+{
+
+	grid_map::GridMap input_grid;
+
+	grid_map::GridMapRosConverter::fromMessage(gridmap_ros_in_message, input_grid);
+
+	grid_map::GridMapCvConverter::toImage<unsigned char, 1>(input_grid,
+	                                                        occupancy_layer_name_,
+	                                                        CV_8UC1,
+	                                                        grid_min_value_,
+	                                                        grid_max_value_,
+	                                                        road_wayarea_original_mat_);
+
+	input_gridmap_frame_        = input_grid.getFrameId();
+	input_gridmap_length_       = input_grid.getLength();
+	input_gridmap_resolution_   = input_grid.getResolution();
+	input_gridmap_position_     = input_grid.getPosition();
+
+	gridmap_.add("Occupancy", input_grid.get(occupancy_layer_name_));
+	// Index(Eigen::Array2i)→[A,B]という形
+	gridmap::Index 
+
+
+}
 
 void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2::ConstPtr &in_ground_cloud_msg,
                                                   const sensor_msgs::PointCloud2::ConstPtr &in_no_ground_cloud_msg)
@@ -320,9 +399,95 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 
 	grid_map::GridMap output_gridmap;
 	output_gridmap.setFrameId(input_gridmap_frame_);
+	
+	
+	/* ******************************************************************************************
+	 * setGeometry
+	 * ------------------------------------------------------------------------------------------
+	 * void grid_map::GridMap::setGeometry	(	const Length & 	length,
+	 * const double 	resolution,
+	 * const Position & 	position = Position::Zero() 
+	 * )		
+	 * Set the geometry of the grid map. Clears all the data.
+	 * Parameters
+	 * length	the side lengths in x, and y-direction of the grid map [m].
+	 * resolution	the cell size in [m/cell].
+	 * position	the 2d position of the grid map in the grid map frame [m].
+	 * Definition at line 51 of file GridMap.cpp.
+	 * **************************************************************************************** */
 	output_gridmap.setGeometry(input_gridmap_length_,
 	                           input_gridmap_resolution_,
 	                           input_gridmap_position_);
+	ROS_INFO("Created map with size %f x %f m (%i x %i cells).\n The center of the map is located at (%f, %f) in the %s frame.",
+    output_gridmap.getLength().x(), output_gridmap.getLength().y(),
+    output_gridmap.getSize()(0), output_gridmap.getSize()(1),
+    output_gridmap.getPosition().x(), output_gridmap.getPosition().y(), output_gridmap.getFrameId().c_str());
+	/* ******************************************************************************************
+	 * isInside
+	 * ------------------------------------------------------------------------------------------
+	 * bool grid_map::GridMap::isInside	(	const Position & 	position	)	const
+	 * Check if position is within the map boundaries.
+	 * 
+	 * Parameters
+	 * position	the position to be checked.
+	 * Returns
+	 * true if position is within map, false otherwise.
+	 * Definition at line 237 of file GridMap.cpp.
+	 * **************************************************************************************** */
+	//// Adding outliers (accessing cell by position).
+    //for (unsigned int i = 0; i < 500; ++i) {
+    //  Position randomPosition = Position::Random();
+    //  if (map.isInside(randomPosition))
+	/* ******************************************************************************************
+	 * atPosition
+	 * ------------------------------------------------------------------------------------------
+	 * float & grid_map::GridMap::atPosition	(	const std::string & 	layer,
+	 * const Position & 	position 
+	 * )		
+	 * Get cell data at requested position.
+	 * Parameters
+	 * layer	the name of the layer to be accessed.
+	 * position	the requested position.
+	 * Returns
+	 * the data of the cell.
+	 * Exceptions
+	 * std::out_of_range	if no map layer with name layer is present.
+	 * Definition at line 174 of file GridMap.cpp.
+	 * 
+	 * **************************************************************************************** */
+    //   map.atPosition("elevation_noisy", randomPosition) = std::numeric_limits<float>::infinity();
+	// }
+	/* ******************************************************************************************
+	 * add
+	 * ------------------------------------------------------------------------------------------
+	 * float & grid_map::GridMap::atPosition	(	const std::string & 	layer,
+	 * const Position & 	position 
+	 * )		
+	 * Get cell data at requested position.
+	 * Parameters
+	 * layer	the name of the layer to be accessed.
+	 * position	the requested position.
+	 * Returns
+	 * the data of the cell.
+	 * Exceptions
+	 * std::out_of_range	if no map layer with name layer is present.
+	 * Definition at line 174 of file GridMap.cpp.
+	 * 
+	 * **************************************************************************************** */
+
+	/* ******************************************************************************************
+	 * bool grid_map::GridMap::getIndex	(	const Position & 	position,
+	 * Index & 	index 
+	 * )const
+	 * Gets the corresponding cell index for a position.
+	 * Parameters
+	 * [in]	position	the requested position.
+	 * [out]	index	the corresponding index.
+	 * Returns
+	 * true if successful, false if position outside of map.
+	 * Definition at line 227 of file GridMap.cpp.
+	 * **************************************************************************************** */
+
 
 	//output_gridmap[output_layer_name_].setConstant(OCCUPANCY_NO_ROAD);
 
@@ -389,6 +554,10 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 	//cv::waitKey(10);
 	LoadRoadLayerFromMat(output_gridmap, current_road_mat);
 
+	// タイムスタンプ：GridMapのタイムスタンプを
+	gridmap_.setTimestamp(time.toNSec());
+
+	// occlusion計算後のGridMapをパブリッシュする：引数（配信用GridMap，配信用GridMapに）
 	PublishGridMap(output_gridmap, output_layer_name_);
 
 	// timer end
@@ -397,17 +566,31 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 	//std::cout << "time: " << usec / 1000.0 << " [msec]" << std::endl;
 
 }
-// 
+// mainプログラム：init()
 void Occlusion::init(ros::NodeHandle &in_private_handle)
 {
-	// パラメータ取得
-	std::string points_ground_topic_str, points_no_ground_topic_str, wayarea_topic_str;
+	
+	// ！！！要チェック！！！
+	std::string occupancy_topic_str;
+
+	// Set the frame id of the grid map
+	map.setFrameId("map");
+	// 
+    map.setGeometry(Length(1.2, 2.0), 0.03);
+    ROS_INFO("Created map with size %f x %f m (%i x %i cells).",
+    map.getLength().x(), map.getLength().y(),
+    map.getSize()(0), map.getSize()(1));
+
+
+
 
 	/* ******************************************************************************************
-	 * param（）はgetParam（）に似ていますが、パラメータを取得できなかった場合のデフォルト値を指定できます。
+	 * パラメータ取得
+	 * ------------------------------------------------------------------------------------------
+	 * param（）はgetParam（）に似ていますが、パラメータを取得できなかった場合,
+	 * デフォルト値を指定できます。
 	 * コンパイラが文字列型のヒントを要求することがあります。
-	 * 
-	 ******************************************************************************************** */
+	 * **************************************************************************************** */
 
 	// パラメータ取得：<arg name="occupancy_topic_src" default="gridmap_road_status" />
 	// <!-- Road Occupancy Processor が配信しているトピック名 -->
@@ -421,54 +604,48 @@ void Occlusion::init(ros::NodeHandle &in_private_handle)
 	// <!-- Occlusion が配信する GridMapクラスメッセージにおけるレイヤー名 -->
 	in_private_handle.param<std::string>("output_layer_name", output_layer_name_, "road_occlusion");
 	ROS_INFO("[%s] output_layer_name: %s",occlusion, output_layer_name_.c_str());
-	// 
-	in_private_handle.param<std::string>("points_no_ground_src", points_no_ground_topic_str, "points_no_ground");
-	ROS_INFO("[%s] points_no_ground_src: %s",occlusion, points_no_ground_topic_str.c_str());
-
-	in_private_handle.param<std::string>("wayarea_topic_src", wayarea_topic_str, "grid_map_wayarea");
-	ROS_INFO("[%s] wayarea_topic_src: %s",occlusion, wayarea_topic_str.c_str());
-
-	
-
+	// パラメータ取得：	<arg name="road_unknown_value" default="128" />   
 	in_private_handle.param<int>("road_unknown_value", OCCUPANCY_ROAD_UNKNOWN, 128);
 	ROS_INFO("[%s] road_unknown_value: %d",occlusion, OCCUPANCY_ROAD_UNKNOWN);
-
+	// パラメータ取得：<arg name="road_free_value" default="75" /> 
 	in_private_handle.param<int>("road_free_value", OCCUPANCY_ROAD_FREE, 75);
 	ROS_INFO("[%s] road_free_value: %d",occlusion, OCCUPANCY_ROAD_FREE);
-
+	// パラメータ取得：<arg name="road_occupied_value" default="0" />      
 	in_private_handle.param<int>("road_occupied_value", OCCUPANCY_ROAD_OCCUPIED, 0);
 	ROS_INFO("[%s] road_occupied_value: %d",occlusion, OCCUPANCY_ROAD_OCCUPIED);
-
+	// パラメータ取得：<arg name="no_road_value" default="255" />  
 	in_private_handle.param<int>("no_road_value", OCCUPANCY_NO_ROAD, 255);
 	ROS_INFO("[%s] no_road_value: %d",occlusion, OCCUPANCY_NO_ROAD);
 
-	//generate subscribers and sychronizers
-	cloud_ground_subscriber_ = new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_handle_,
-	                                                                                     points_ground_topic_str, 1);
-	ROS_INFO("[%s] Subscribing to... %s",occlusion, points_ground_topic_str.c_str());
-	cloud_no_ground_subscriber_ = new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_handle_,
-	                                                                                        points_no_ground_topic_str, 1);
-	ROS_INFO("[%s] Subscribing to... %s",occlusion, points_no_ground_topic_str.c_str());
+	/* ******************************************************************************************
+	 * サブスクライバー宣言
+	 * ------------------------------------------------------------------------------------------
+	 * 
+	 * 
+	 * 
+	 * **************************************************************************************** */
 
-	/*gridmap_subscriber_ = new message_filters::Subscriber<grid_map_msgs::GridMap>(node_handle_,
-	                                                                              wayarea_topic_str, 1);
-	gridmap_subscriber_->registerCallback(boost::bind(&RosRoadOccupancyProcessorApp::PointsCallback, this));*/
-	gridmap_subscriber_ = node_handle_.subscribe(wayarea_topic_str, 10,
-	                                                             &RosRoadOccupancyProcessorApp::GridMapCallback, this);
-	ROS_INFO("[%s] Subscribing to... %s",occlusion, wayarea_topic_str.c_str());
+	// サブスクライバー宣言：Road Occupancy Grid ノードが配信するトピックを購読
+	// トピックを受け取った場合→&Occlusion::OccupancyCallback関数を呼び出す
+	gridmap_subscriber_ = node_handle_.subscribe(occupancy_topic_str, 1, &Occlusion::OccupancyCallback, this);
+	ROS_INFO("[%s] Subscribing to... %s",occlusion, occupancy_topic_str.c_str());
+	// サブスクライバー宣言：トピック "DetectedObjects" を購読
+	// トピックを受け取った場合→&Occlusion::OccupancyCallback関数を呼び出す
+	objects_subscriber_ = node_handle_.subscribe("/detected_objects", 1, &Occlusion::ObjectCallback, this);
+	ROS_INFO("[%s] Subscribing to... /detected_objects",occlusion);
 
-	cloud_synchronizer_ =
-			new message_filters::Synchronizer<SyncPolicyT>(SyncPolicyT(100),
-			                                               *cloud_ground_subscriber_,
-			                                               *cloud_no_ground_subscriber_);
-	cloud_synchronizer_->registerCallback(boost::bind(&RosRoadOccupancyProcessorApp::PointsCallback, this, _1, _2));
-
-	//register publishers
-	publisher_grid_map_= node_handle_.advertise<grid_map_msgs::GridMap>("gridmap_road_status", 1);
+	// パブリッシャー宣言：Occlusion ノードとして配信するトピックを登録
+	publisher_grid_map_= node_handle_.advertise<grid_map_msgs::GridMap>("gridmap_occlusion", 1);
 	ROS_INFO("[%s] Publishing GridMap in gridmap_road_status",occlusion);
-
-	publisher_occupancy_grid_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("occupancy_road_status", 1);
+	// パブリッシャー宣言：Occlusion ノードとして配信するトピックを登録
+	publisher_occupancy_grid_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("occupancy_occlusion", 1);
 	ROS_INFO("[%s] Publishing Occupancy grid in occupancy_road_status",occlusion);
+	// デバック用
+	ROS_INFO("Created Map");
+
+
+
+
 }
 
 tf::StampedTransform
@@ -501,20 +678,24 @@ RosRoadOccupancyProcessorApp::TransformPoint(const geometry_msgs::Point &in_poin
 
 	return geometry_point;
 }
-
-void RosRoadOccupancyProcessorApp::Run()
+// ノード本体
+void Occlusion::run()
 {
+	// 引数を呼び出すためのノードハンドラ
 	ros::NodeHandle private_node_handle("~");
+	// 
 	tf::TransformListener transform_listener;
-
+	// 
 	transform_listener_ = &transform_listener;
-
+	// 
 	InitializeRosIo(private_node_handle);
-
+	//
+	
+	// 
 	ROS_INFO("[%s] Ready. Waiting for data...",occlusion);
-
+	// 
 	ros::spin();
-
+	// 
 	ROS_INFO("[%s] END",occlusion);
 }
 
@@ -525,5 +706,5 @@ RosRoadOccupancyProcessorApp::RosRoadOccupancyProcessorApp()
 // 検出された物体情報を取り出す
 Occlusion::Occlusion()
 {
-
+	
 }

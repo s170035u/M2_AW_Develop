@@ -77,6 +77,8 @@
 #include <visualization_msgs/Marker.h>
 // visualization_msgs/Markerメッセージの配列
 #include <visualization_msgs/MarkerArray.h>
+// 最初と最後の点が接続されていると想定される多角形の指定
+#include <geometry_msgs/PolygonStamped.h>
 
 #endif
 // これはROS ImageメッセージとOpenCVイメージを変換するCvBridgeを含みます。
@@ -150,7 +152,7 @@ class Occlusion
 	ros::Publisher                      publisher_occupancy_grid_;
 	// パブリッシャー：gridmap
 	ros::Publisher                      publisher_grid_map_;
-	// GridMapクラス
+	// サブスクライブされたGridMapクラス
 	grid_map::GridMap                   gridmap_;
 	// 座標変換
 	tf::TransformListener*              transform_listener_;
@@ -177,6 +179,15 @@ class Occlusion
 	int                                 OCCUPANCY_ROAD_FREE     = 75;
 	int                                 OCCUPANCY_ROAD_OCCUPIED = 0;
 	int                                 OCCUPANCY_NO_ROAD       = 255;
+
+	struct OcclusionGridMap 
+	{
+		tf::Vector2d Position;
+		tf::Vector2d Directions;
+
+
+
+	}
 	/*!
 	 * 引数in_grid_imageで道路レイヤをリセットします
 	 * @param in_grid_map 置き換えるマップ

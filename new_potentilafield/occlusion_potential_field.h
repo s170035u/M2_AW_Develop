@@ -93,7 +93,8 @@ PotentialField::PotentialField()
                                     &PotentialField::obj_callback, this);
   if (use_vscan_points_)
     vscan_subscriber_ = nh_.subscribe(
-        "/vscan_points", 1, &PotentialField::vscan_points_callback, this);
+        "/vscan_points", 1, &PotentialField::vscan_points_
+        back, this);
   if (use_target_waypoint_)
     waypoint_subscriber_ =
         nh_.subscribe("/next_target_mark", 1,
