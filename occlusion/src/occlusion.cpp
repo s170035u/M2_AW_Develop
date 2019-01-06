@@ -106,76 +106,33 @@ namespace object_map
 
 
 
-#include "road_occupancy_processor.h"
 
-void RosRoadOccupancyProcessorApp::ConvertXYZIToRTZ(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud,
-                                                    RosRoadOccupancyProcessorApp::PointCloudXYZIRTColor &out_organized_points,
-                                                    std::vector<pcl::PointIndices> &out_radial_divided_indices,
-                                                    std::vector<RosRoadOccupancyProcessorApp::PointCloudXYZIRTColor> &out_radial_ordered_clouds)
+
+
+
+
+
+
+
+
+
+#include "occlusion.h"
+
+// Publishのための関数
+void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::string& input_layer_for_publish)
 {
-	out_organized_points.resize(in_cloud->points.size());
-	out_radial_divided_indices.clear();
-	out_radial_divided_indices.resize(radial_dividers_num_);
-	out_radial_ordered_clouds.resize(radial_dividers_num_);
-
-	for(size_t i=0; i< in_cloud->points.size(); i++)
-	{
-		PointXYZIRT new_point;
-		auto radius         = (float) sqrt(
-				in_cloud->points[i].x*in_cloud->points[i].x
-				+ in_cloud->points[i].y*in_cloud->points[i].y
-		);
-		auto theta          = (float) atan2(in_cloud->points[i].y, in_cloud->points[i].x) * 180 / M_PI;
-		if (theta < 0){ theta+=360; }
-
-		auto radial_div     = (size_t) floor(theta/radial_divider_angle_);
-		auto concentric_div = (size_t) floor(fabs(radius/concentric_divider_distance_));
-
-		new_point.point    = in_cloud->points[i];
-		new_point.radius   = radius;
-		new_point.theta    = theta;
-		new_point.radial_div = radial_div;
-		new_point.concentric_div = concentric_div;
-		new_point.original_index = i;
-
-		out_organized_points[i] = new_point;
-
-		//radial divisions
-		out_radial_divided_indices[radial_div].indices.push_back(i);
-
-		out_radial_ordered_clouds[radial_div].push_back(new_point);
-
-	}//end for
-
-	//order radial points on each division
-#pragma omp for
-	for(size_t i=0; i< radial_dividers_num_; i++)
-	{
-		std::sort(out_radial_ordered_clouds[i].begin(), out_radial_ordered_clouds[i].end(),
-		          [](const PointXYZIRT& a, const PointXYZIRT& b){ return a.radius < b.radius; });
-	}
-}
-
-void RosRoadOccupancyProcessorApp::PublishGridMap(grid_map::GridMap &in_grid_map, const std::string& in_layer_publish)
-{
-	// gridmapにパブリッシュするレイヤー"occlusion"を設定する
-	gridmap_setFrameId("occlusion");
-	// 
-	gridmap_()
-
-
 	// 配信用のレイヤーがデータに含まれている場合
-	if (in_grid_map.exists(in_layer_publish))
+	if (input_grid_map.exists(input_layer_for_publish))
 	{
 		// grid_map_msg/GridMap.msg型の変数：ros_gridmap_message
 		grid_map_msgs::GridMap ros_gridmap_message;
-		// 
+		// nav_msgs/OccupancyGrid型の変数
 		nav_msgs::OccupancyGrid ros_occupancygrid_message;
 		// GridMap型のROSトピックを生成する：引数（グリッドマップ，メッセージ）
-		grid_map::GridMapRosConverter::toMessage(in_grid_map, ros_gridmap_message);
-		// 
-		grid_map::GridMapRosConverter::toOccupancyGrid(in_grid_map,
-		                                               in_layer_publish,
+		grid_map::GridMapRosConverter::toMessage(input_grid_map, ros_gridmap_message);
+		// OccupancyGrid型のROSトピックを生成する：引数(グリッドマップ，レイヤー名，最小値，最大値，メッセージ)
+		grid_map::GridMapRosConverter::toOccupancyGrid(input_grid_map,
+		                                               input_layer_for_publish,
 		                                               grid_min_value_,
 		                                               grid_max_value_,
 		                                               ros_occupancygrid_message);
@@ -187,124 +144,32 @@ void RosRoadOccupancyProcessorApp::PublishGridMap(grid_map::GridMap &in_grid_map
 	// 配信用のレイヤーがデータに含まれていない場合
 	else
 	{
-		ROS_INFO("[%s] Empty GridMap. It might still be loading or it does not contain valid data.", occlusion);
+		// デバック用
+		ROS_INFO(" Empty GridMap. It might still be loading or it does not contain valid data.");
 	}
 }
-
-bool RosRoadOccupancyProcessorApp::LoadRoadLayerFromMat(grid_map::GridMap &in_grid_map, cv::Mat &in_grid_image)
+// Road Occupancy Processorからメッセージを受け取った時に呼び出される：callback関数
+void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
 {
-	if (!in_grid_image.empty())
-	{
-		grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(in_grid_image,
-		                                                                  output_layer_name_,
-		                                                                  in_grid_map,
-		                                                                  grid_min_value_,
-		                                                                  grid_max_value_);
-
-		return true;
-	}
-
-	ROS_INFO("[%s] Empty Image received.", occlusion);
-	return false;
-}
-
-void RosRoadOccupancyProcessorApp::Convert3dPointToOccupancy(grid_map::GridMap &in_grid_map,
-                                                             const geometry_msgs::Point &in_point, cv::Point &out_point)
-{
-	// calculate position
-	grid_map::Position map_pos = in_grid_map.getPosition();
-	double origin_x_offset = in_grid_map.getLength().x() / 2.0 - map_pos.x();
-	double origin_y_offset = in_grid_map.getLength().y() / 2.0 - map_pos.y();
-	// coordinate conversion for cv image
-	out_point.x = (in_grid_map.getLength().y() - origin_y_offset - in_point.y) / in_grid_map.getResolution();
-	out_point.y = (in_grid_map.getLength().x() - origin_x_offset - in_point.x) / in_grid_map.getResolution();
-}
-
-void RosRoadOccupancyProcessorApp::DrawLineInGridMap(grid_map::GridMap &in_grid_map, cv::Mat &in_grid_image,
-                                                     const geometry_msgs::Point &in_start_point,
-                                                     const geometry_msgs::Point &in_end_point, uchar in_value)
-{
-	cv::Point cv_start_point, cv_end_point;
-	Convert3dPointToOccupancy(in_grid_map, in_start_point, cv_start_point);
-	Convert3dPointToOccupancy(in_grid_map, in_end_point, cv_end_point);
-
-	cv::Rect rect(cv::Point(), in_grid_image.size());
-
-	if(!rect.contains(cv_start_point) || !rect.contains(cv_end_point))
-	{
-		return;
-	}
-	if (in_grid_image.at<uchar>(cv_start_point.y, cv_start_point.x) != OCCUPANCY_NO_ROAD
-	    && in_grid_image.at<uchar>(cv_end_point.y, cv_end_point.x) != OCCUPANCY_NO_ROAD)
-	{
-		const int line_width = 3;
-		cv::line(in_grid_image, cv_start_point, cv_end_point, cv::Scalar(in_value), line_width);
-	}
-}
-
-void RosRoadOccupancyProcessorApp::SetPointInGridMap(grid_map::GridMap &in_grid_map, cv::Mat &in_grid_image,
-                                                     const geometry_msgs::Point &in_point, uchar in_value)
-{
-	// calculate position
-	cv::Point cv_point;
-	Convert3dPointToOccupancy(in_grid_map, in_point, cv_point);
-
-	cv::Rect rect(cv::Point(), in_grid_image.size());
-
-	if(!rect.contains(cv_point))
-		return;
-
-	if (in_grid_image.at<uchar>(cv_point.y, cv_point.x) != OCCUPANCY_NO_ROAD)
-	{
-		const int radius = 2;
-		const int fill = -1;
-		cv::circle(in_grid_image, cv::Point(cv_point.x, cv_point.y), radius, cv::Scalar(in_value), fill);
-	}
-}
-// 
-void Occlusion::GridMapCallback(const grid_map_msgs::GridMap& in_message)
-{
+	// メッセージを受け取るための変数
 	grid_map::GridMap input_grid;
-	grid_map::GridMapRosConverter::fromMessage(in_message, input_grid);
-
-	grid_map::GridMapCvConverter::toImage<unsigned char, 1>(input_grid,
-	                                                        occupancy_layer_name_,
-	                                                        CV_8UC1,
-	                                                        grid_min_value_,
-	                                                        grid_max_value_,
-	                                                        road_wayarea_original_mat_);
-
+	// GridMap形式のROSメッセージをGridMapクラスで受け取る
+	grid_map::GridMapRosConverter::fromMessage(input_grid_message, input_grid);
+	// Road Occupancy Processorのグリッドマップデータ型をそのまま引用
+	// フレームid
 	input_gridmap_frame_        = input_grid.getFrameId();
+	// グリッドマップの長さ（X,Y方向）
 	input_gridmap_length_       = input_grid.getLength();
-	// Get the resolution of the grid map.
-	// Returns : resolution of the grid map in the xy plane [m/cell].
 	// Road Occupancy Processorで使用されている解像度を選択する
 	input_gridmap_resolution_   = input_grid.getResolution();
-	// 
+	// グリッドマップの位置
 	input_gridmap_position_     = input_grid.getPosition();
+	// レイヤーとして追加する
+	
+
 }
-// Detected Object メッセージを受け取った時：callback関数
-void Occlusion::GridMapCallback(const grid_map_msgs::GridMap& in_message)
-{
 
-	grid_map::GridMap input_grid;
-	grid_map::GridMapRosConverter::fromMessage(in_message, input_grid);
-
-	grid_map::GridMapCvConverter::toImage<unsigned char, 1>(input_grid,
-	                                                        occupancy_layer_name_,
-	                                                        CV_8UC1,
-	                                                        grid_min_value_,
-	                                                        grid_max_value_,
-	                                                        road_wayarea_original_mat_);
-
-	input_gridmap_frame_        = input_grid.getFrameId();
-	input_gridmap_length_       = input_grid.getLength();
-	input_gridmap_resolution_   = input_grid.getResolution();
-
-
-
-	input_gridmap_position_     = input_grid.getPosition();
-}
+// Detected Object メッセージを受け取った時に呼び出される：callback関数
 void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg)
 {
 	// データをGridMapに格納していく
@@ -704,7 +569,29 @@ RosRoadOccupancyProcessorApp::RosRoadOccupancyProcessorApp()
 	radial_dividers_num_ = ceil(360 / radial_divider_angle_);
 }
 // 検出された物体情報を取り出す
-Occlusion::Occlusion()
+Occlusion::GeneratePolygon()
 {
-	
+	// オクルージョン領域を示す"Polygon"を定義する
+    grid_map::Polygon polygon;
+	// FrameIdをセットする
+    polygon.setFrameId(map_.getFrameId());
+	// オクルージョン領域の形成する頂点追加
+    polygon.addVertex(Position( 0.480,  0.000));
+    polygon.addVertex(Position( 0.164,  0.155));
+    polygon.addVertex(Position( 0.116,  0.500));
+    polygon.addVertex(Position(-0.133,  0.250));
+    polygon.addVertex(Position(-0.480,  0.399));
+    polygon.addVertex(Position(-0.316,  0.000));
+    polygon.addVertex(Position(-0.480, -0.399));
+    polygon.addVertex(Position(-0.133, -0.250));
+    polygon.addVertex(Position( 0.116, -0.500));
+    polygon.addVertex(Position( 0.164, -0.155));
+    polygon.addVertex(Position( 0.480,  0.000));
+
+	for (grid_map::PolygonIterator iterator(map_, polygon); !iterator.isPastEnd(); ++iterator) 
+	{
+    	map_.at("type", *iterator) = 1.0;
+    }
+
+
 }

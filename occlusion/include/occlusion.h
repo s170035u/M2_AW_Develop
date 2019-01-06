@@ -2,12 +2,11 @@
  * パブリック情報をヘッダーファイルにまとめる
  * ・モジュールの機能とユーザーが利用できるものを明確に説明するコメント部分
  * ・外部からアクセスできるクラス定義
- * ・
  ********************************************************************************************/
 // ヘッダーファイルは定数やデータ構造を定義するのに役立つ
-#ifndef OCCLUSION_CALC_H
+#ifndef OCCLUSION_H
 // 同じファイルを複数回インクルードしないようにシンボルを定義するようにする
-#define OCCLUSION_CALC_H
+#define OCCLUSION_H
 // 入出力機能に関する基本的な型や関数を使用する目的でヘッダーをインクルード
 #include <iostream>
 // ベクトル
@@ -79,76 +78,14 @@
 #include <visualization_msgs/MarkerArray.h>
 // 最初と最後の点が接続されていると想定される多角形の指定
 #include <geometry_msgs/PolygonStamped.h>
-
-#endif
 // これはROS ImageメッセージとOpenCVイメージを変換するCvBridgeを含みます。
-// #include <cv_bridge/cv_bridge.h>
-
-namespace object_map
-{
-
-	class WayareaToGrid
-	{
-	public:配列
-		WayareaToGrid();
-
-		void Run();
-
-	private:
-		// ノードのハンドラを定義：Pablish時に使用する
-        // 最初：ノードの初期化＋最後：破壊時ノードが使っていたリソースを破壊
-		ros::NodeHandle         node_handle_;
-        // ノードのハンドラを定義：初期化時に使用する
-        // 最初：ノードの初期化＋最後：破壊時ノードが使っていたリソースを破壊
-		ros::NodeHandle         private_node_handle_;
-        // パブリッシャー宣言：grid_map形式のmsgを配信するためのPublisher
-        // ①トピックに対してメッセージを発信できるpublish()メソッドを含む
-        // ② スコープから出ると自動的に発信しなくなる
-		ros::Publisher          publisher_grid_map_;
-        // パブリッシャー宣言：ros nav_msgs :: OccupancyGrid形式のmsgを配信するためのPublisher
-        // ①トピックに対してメッセージを発信できるpublish()メソッドを含む
-        // ② スコープから出ると自動的に発信しなくなる
-		ros::Publisher          publisher_occupancy_;
-
-		grid_map::GridMap       gridmap_;
-
-		std::string             sensor_frame_;
-		std::string             map_frame_;
-
-		const std::string       grid_layer_name_ = "wayarea";
-
-		double                  grid_resolution_;
-		double                  grid_length_x_;
-		double                  grid_length_y_;
-		double                  grid_position_x_;
-		double                  grid_position_y_;
-
-		tf::TransformListener   tf_listener_;
-
-		int                     OCCUPANCY_ROAD      = 128;
-		int                     OCCUPANCY_NO_ROAD   = 255;
-		const int               grid_min_value_     = 0;
-		const int               grid_max_value_     = 255;
-
-		std::vector<std::vector<geometry_msgs::Point>> area_points_;
-
-		/*!
-		 * Initializes Ros Publisher, Subscribers and sets the configuration parameters
-		 */
-		void InitializeRosIo();
-
-
-	};
-
-}  // namespace object_map
-
-#endif  // WAYAREA_TO_GRID
-
+#include <cv_bridge/cv_bridge.h>
+#endif
 class Occlusion
-{
+{ 
 	// ノードハンドラ
 	ros::NodeHandle                     node_handle_;
-	// パブリッシャー：navmsg
+    // パブリッシャー：navmsg
 	ros::Publisher                      publisher_occupancy_grid_;
 	// パブリッシャー：gridmap
 	ros::Publisher                      publisher_grid_map_;
@@ -167,12 +104,12 @@ class Occlusion
 	// Grid Map 長さ(typedef Eigen::Array2d)
 	grid_map::Length                    input_gridmap_length_;
 	// Grid Map 位置(typedef Eigen::Vector2d)
-	grid_map::Position                  input_gridmap_position_;
+    grid_map::Position                  input_gridmap_position_;
 	// Grid Map 形式のメッセージをサブスクライブする
-	ros::Subscriber                                         gridmap_subscriber_;
-	// Detected Object 形式のメッセージをサブスクライブする
-	ros::Subscriber                                         objects_subscriber_;
-	// Occupancy Processor のグリッドマップ設定
+	ros::Subscriber                     gridmap_subscriber_;
+    // Grid Map 形式のメッセージをサブスクライブする
+	ros::Subscriber                     objects_subscriber_;
+	// パラメータ
 	const int                           grid_min_value_         = 0;
 	const int                           grid_max_value_         = 255;
 	int                                 OCCUPANCY_ROAD_UNKNOWN  = 128;
@@ -184,72 +121,31 @@ class Occlusion
 	{
 		tf::Vector2d Position;
 		tf::Vector2d Directions;
-
-
-
 	}
-	/*!
-	 * 引数in_grid_imageで道路レイヤをリセットします
-	 * @param in_grid_map 置き換えるマップ
-	 * @param in_grid_image レイヤーに必要なデータを含む画像
-	 * @return 交換が可能であれば真。 それ以外の場合はfalse
-	 */
-	bool LoadRoadLayerFromMat(grid_map::GridMap &in_grid_map, cv::Mat &in_grid_image);
 	/*!
 	 * 現在のインスタンスに含まれているGridMapオブジェクトを公開します。
 	 * @param[in] 公開するGridMap
 	 * @param[in] OccupancyGridとして公開するレイヤーの名前
 	 */
-	void PublishGridMap(grid_map::GridMap& in_grid_map, const std::string& in_layer_publish);
-	// なんだろう
-	void Convert3dPointToOccupancy(grid_map::GridMap& in_grid_map,
-	                               const geometry_msgs::Point& in_point,
-	                               cv::Point& out_point);
-	/*!
-	 * ビットマップ内の2点間に線を引きます
-	 * @param in_grid_map 変更するGridMapオブジェクト
-	 * @param in_grid_image 線を描画するビットマップ
-	 * @param in_start_point 線の始点
-	 * @param in_end_point 線の終点
-	 * @param in_value 行内の点に割り当てるためのValid
-	 */
-	void DrawLineInGridMap(grid_map::GridMap& in_grid_map,
-	                       cv::Mat& in_grid_image,
-	                       const geometry_msgs::Point& in_start_point,
-	                       const geometry_msgs::Point& in_end_point,
-	                       uchar in_value);
-
-	/*!
-	 * 占有グリッドに点を描画します
-	 * @param in_grid_map 変更するGridMapオブジェクト
-	 * @param in_grid_image 点を描画するビットマップ
-	 * @param in_point pointポイントを描画するポイント
-	 * @param in_value 全体に設定する値
-	 */
-	void SetPointInGridMap(grid_map::GridMap& in_grid_map,
-	                       cv::Mat& in_grid_image,
-	                       const geometry_msgs::Point& in_point,
-	                       uchar in_value);
-
+	// チェック済
+	void PublishGridMap(grid_map::GridMap &input_grid_map, const std::string& input_layer_for_publish)
 	/*!
 	 * コールバック関数
 	 * GridMapメッセージを受け取り、その形状、占有ビットマップを抽出します
 	 * @param in_message 受信したメッセージ
 	 */
-	void GridMapCallback(const grid_map_msgs::GridMap& in_message);
+	void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
 	/*!
 	 * コールバック関数
 	 * DetectedObjectArrayメッセージを受け取り、その位置、姿勢、大きさを抽出する
 	 * @param in_message 受信したメッセージ
 	 */
-	void ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg);
-
+	void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg);
 	/*!
 	 * コマンドラインからパラメータを取得し、購読者と発行者を初期化します。
 	 * in_private_handleこのノードのパラメータを取得するためのRosプライベートハンドル。
 	 */
 	void InitializeRosIo(ros::NodeHandle& in_private_handle);
-
 	/*!
 	 * TFツリーのin_source_frameとin_target_frameの間の変換を検索する
 	 * @param in_target_frameターゲットフレーム名
@@ -257,7 +153,6 @@ class Occlusion
 	 * @return in_source_frameからin_target_frameに変換する変換がある場合は、それを返します。
 	 */
 	tf::StampedTransform FindTransform(const std::string& in_target_frame, const std::string& in_source_frame);
-
 	/*!
 	 * 指定された変換を使ってPointを変換する
 	 * @param in_point 変換するポイント
@@ -267,7 +162,175 @@ class Occlusion
 	geometry_msgs::Point TransformPoint(const geometry_msgs::Point &in_point, const tf::Transform &in_transform);
 
 public:
-	 void init();
-	 void run();
+	// 
+	void init();
+	// 
+	void run();
+	// 
 	Occlusion();
 };
+//------------------------------------------------------------------------------------------------------------
+/*!
+* @param[in] in_cloud Input Point Cloud to be organized in radial segments
+* @param[out] out_organized_points Custom Point Cloud filled with XYZRTZColor data
+* @param[out] out_radial_divided_indices Indices of the points in the original cloud for each radial segment
+* @param[out] out_radial_ordered_clouds Vector of Points Clouds, each element will contain the points ordered
+void ConvertXYZIToRTZ(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud,
+	                      PointCloudXYZIRTColor& out_organized_points,
+	                      std::vector<pcl::PointIndices>& out_radial_divided_indices,
+	                      std::vector<PointCloudXYZIRTColor>& out_radial_ordered_clouds);
+*/
+//------------------------------------------------------------------------------------------------------------
+/*!
+* 引数in_grid_imageで道路レイヤをリセットします
+* @param in_grid_map 置き換えるマップ
+* @param in_grid_image レイヤーに必要なデータを含む画像
+* @return 交換が可能であれば真。 それ以外の場合はfalse
+bool LoadRoadLayerFromMat(grid_map::GridMap &in_grid_map, cv::Mat &in_grid_image);
+*/
+//------------------------------------------------------------------------------------------------------------
+/*
+void Convert3dPointToOccupancy(grid_map::GridMap& in_grid_map,
+	//                               const geometry_msgs::Point& in_point,
+	//                               cv::Point& out_point);
+*/
+//------------------------------------------------------------------------------------------------------------
+/*!
+* ビットマップ内の2点間に線を引きます
+* @param in_grid_map 変更するGridMapオブジェクト
+* @param in_grid_image 線を描画するビットマップ
+* @param in_start_point 線の始点
+* @param in_end_point 線の終点
+* @param in_value 行内の点に割り当てるためのValid
+void DrawLineInGridMap(grid_map::GridMap& in_grid_map,
+	                       cv::Mat& in_grid_image,
+	                       const geometry_msgs::Point& in_start_point,
+	                       const geometry_msgs::Point& in_end_point,
+	                       uchar in_value);
+*/
+//------------------------------------------------------------------------------------------------------------
+/*
+* 占有グリッドに点を描画します
+* @param in_grid_map 変更するGridMapオブジェクト
+* @param in_grid_image 点を描画するビットマップ
+* @param in_point pointポイントを描画するポイント
+* @param in_value 全体に設定する値
+void SetPointInGridMap(grid_map::GridMap& in_grid_map,
+	                       cv::Mat& in_grid_image,
+	                       const geometry_msgs::Point& in_point,
+	                       uchar in_value);
+*/
+//------------------------------------------------------------------------------------------------------------
+/*!
+* Receives 2 synchronized point cloud messages. in_ground_cloud_msg contains the points classified externally as
+* ground, while in_no_ground_cloud_msg contains the points classified beloging to obstacle above the ground.
+* @param[in] in_ground_cloud_msg Message containing pointcloud classified as ground.
+* @param[in] in_no_ground_cloud_msg Message containing pointcloud classified as obstacle.
+* @param[in] in_gridmap_msg Message containing the GridMap object with the road areas defined.
+void PointsCallback(const sensor_msgs::PointCloud2::ConstPtr& in_ground_cloud_msg,
+	                    const sensor_msgs::PointCloud2::ConstPtr& in_no_ground_cloud_msg);
+*/
+//------------------------------------------------------------------------------------------------------------
+/*
+void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2::ConstPtr &in_ground_cloud_msg,
+                                                  const sensor_msgs::PointCloud2::ConstPtr &in_no_ground_cloud_msg)
+{
+	if(road_wayarea_original_mat_.empty())
+		return;
+
+	// timer start
+	//auto start = std::chrono::system_clock::now();
+
+	cv::Mat current_road_mat = road_wayarea_original_mat_.clone();
+	cv::Mat original_road_mat = current_road_mat.clone();
+
+	grid_map::GridMap output_gridmap;
+	output_gridmap.setFrameId(input_gridmap_frame_);
+	output_gridmap.setGeometry(input_gridmap_length_,
+	                           input_gridmap_resolution_,
+	                           input_gridmap_position_);
+
+	//output_gridmap[output_layer_name_].setConstant(OCCUPANCY_NO_ROAD);
+
+	pcl::PointCloud<pcl::PointXYZI>::Ptr in_ground_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+	pcl::PointCloud<pcl::PointXYZI>::Ptr in_no_ground_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+	pcl::PointCloud<pcl::PointXYZI>::Ptr final_ground_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+	pcl::PointCloud<pcl::PointXYZI>::Ptr final_no_ground_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+
+	pcl::fromROSMsg(*in_ground_cloud_msg, *in_ground_cloud);
+	pcl::fromROSMsg(*in_no_ground_cloud_msg, *in_no_ground_cloud);
+
+	//check that both pointcloud and grid are in the same frame, otherwise transform
+	ConvertPointCloud(*in_ground_cloud, output_gridmap.getFrameId(), *final_ground_cloud);
+	ConvertPointCloud(*in_no_ground_cloud, output_gridmap.getFrameId(), *final_no_ground_cloud);
+
+	//organize pointcloud in cylindrical coords
+	PointCloudXYZIRTColor organized_points;
+	std::vector<pcl::PointIndices> radial_division_indices;
+	std::vector<pcl::PointIndices> closest_indices;
+	std::vector<PointCloudXYZIRTColor> radial_ordered_clouds;
+
+	ConvertXYZIToRTZ(final_ground_cloud,
+	                 organized_points,
+	                 radial_division_indices,
+	                 radial_ordered_clouds);
+
+	//draw lines between initial and last point of each ray
+	for (size_t i = 0; i < radial_ordered_clouds.size(); i++)//sweep through each radial division
+	{
+		geometry_msgs::Point prev_point;
+		for (size_t j = 0; j < radial_ordered_clouds[i].size(); j++)//loop through each point
+		{
+			geometry_msgs::Point current_point;
+			current_point.x = radial_ordered_clouds[i][j].point.x;
+			current_point.y = radial_ordered_clouds[i][j].point.y;
+			current_point.z = radial_ordered_clouds[i][j].point.z;
+
+			DrawLineInGridMap(output_gridmap, current_road_mat, prev_point, current_point, OCCUPANCY_ROAD_FREE);
+		}
+	}
+
+	//process obstacle points
+	for (const auto &point:final_no_ground_cloud->points)
+	{
+		geometry_msgs::Point sensor_point;
+		sensor_point.x = point.x;
+		sensor_point.y = point.y;
+		sensor_point.z = point.z;
+		SetPointInGridMap(output_gridmap, current_road_mat, sensor_point, OCCUPANCY_ROAD_OCCUPIED);
+	}
+
+#pragma omp for
+	for(int row = 0; row < current_road_mat.rows; row++)
+	{
+		for(int col = 0; col < current_road_mat.cols; col++)
+		{
+			if(original_road_mat.at<uchar>(row,col) == OCCUPANCY_NO_ROAD)
+			{
+				current_road_mat.at<uchar>(row,col) = OCCUPANCY_NO_ROAD;
+			}
+		}
+	}
+	//cv::imshow("result", current_road_mat);
+	//cv::waitKey(10);
+	LoadRoadLayerFromMat(output_gridmap, current_road_mat);
+
+	PublishGridMap(output_gridmap, output_layer_name_);
+
+	// timer end
+	//auto end = std::chrono::system_clock::now();
+	//auto usec = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+	//std::cout << "time: " << usec / 1000.0 << " [msec]" << std::endl;
+}
+//------------------------------------------------------------------------------------------------------------
+/*!
+	 * Transforms a pointcloud if the target frame is different
+	 * @param in_pointcloud PointCloud to convert
+	 * @param in_targetframe Target frame
+	 * @param out_pointcloud Output pointcloud, if frame is the same, no transformation will be performed.
+	 
+	void ConvertPointCloud(const pcl::PointCloud<pcl::PointXYZI>& in_pointcloud,
+	                       const std::string& in_targetframe,
+	                       pcl::PointCloud<pcl::PointXYZI>& out_pointcloud)
+*/
+//------------------------------------------------------------------------------------------------------------
