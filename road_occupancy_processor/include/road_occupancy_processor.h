@@ -98,10 +98,42 @@ class RosRoadOccupancyProcessorApp
 	std::string                         output_layer_name_;//desired name to be published in the layer of the GridMap
 
 	std::string                         input_gridmap_frame_;
-	double                              input_gridmap_resolution_;
-	grid_map::Length                    input_gridmap_length_;
-	grid_map::Position                  input_gridmap_position_;
-
+/*!
+	 * Transforms a pointcloud if the target frame is different
+	 * @param in_pointcloud PointCloud to convert
+	 * @param in_targetframe Target frame
+	 * @param out_pointcloud Output pointcloud, if frame is the same, no transformation will be performed.
+	 */
+	void ConvertPointCloud(const pcl::PointCloud<pcl::PointXYZI>& in_pointcloud,
+	                       const std::string& in_targetframe,
+	                       pcl::PointCloud<pcl::PointXYZI>& out_pointcloud);nput_gridmap_resolution_;
+/*!
+	 * Transforms a pointcloud if the target frame is different
+	 * @param in_pointcloud PointCloud to convert
+	 * @param in_targetframe Target frame
+	 * @param out_pointcloud Output pointcloud, if frame is the same, no transformation will be performed.
+	 */
+	void ConvertPointCloud(const pcl::PointCloud<pcl::PointXYZI>& in_pointcloud,
+	                       const std::string& in_targetframe,
+	                       pcl::PointCloud<pcl::PointXYZI>& out_pointcloud);nput_gridmap_length_;
+/*!
+	 * Transforms a pointcloud if the target frame is different
+	 * @param in_pointcloud PointCloud to convert
+	 * @param in_targetframe Target frame
+	 * @param out_pointcloud Output pointcloud, if frame is the same, no transformation will be performed.
+	 */
+	void ConvertPointCloud(const pcl::PointCloud<pcl::PointXYZI>& in_pointcloud,
+	                       const std::string& in_targetframe,
+	                       pcl::PointCloud<pcl::PointXYZI>& out_pointcloud);nput_gridmap_position_;
+/*!
+	 * Transforms a pointcloud if the target frame is different
+	 * @param in_pointcloud PointCloud to convert
+	 * @param in_targetframe Target frame
+	 * @param out_pointcloud Output pointcloud, if frame is the same, no transformation will be performed.
+	 */
+	void ConvertPointCloud(const pcl::PointCloud<pcl::PointXYZI>& in_pointcloud,
+	                       const std::string& in_targetframe,
+	                       pcl::PointCloud<pcl::PointXYZI>& out_pointcloud);
 	typedef
 	message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2,
 			sensor_msgs::PointCloud2> SyncPolicyT;
@@ -208,7 +240,15 @@ class RosRoadOccupancyProcessorApp
 	 * @param[in] in_gridmap_msg Message containing the GridMap object with the road areas defined.
 	 */
 	void PointsCallback(const sensor_msgs::PointCloud2::ConstPtr& in_ground_cloud_msg,
-	                    const sensor_msgs::PointCloud2::ConstPtr& in_no_ground_cloud_msg);
+	                    const sensor_msgs::PointCloud/*!
+	 * Transforms a pointcloud if the target frame is different
+	 * @param in_pointcloud PointCloud to convert
+	 * @param in_targetframe Target frame
+	 * @param out_pointcloud Output pointcloud, if frame is the same, no transformation will be performed.
+	 */
+	void ConvertPointCloud(const pcl::PointCloud<pcl::PointXYZI>& in_pointcloud,
+	                       const std::string& in_targetframe,
+	                       pcl::PointCloud<pcl::PointXYZI>& out_pointcloud);2::ConstPtr& in_no_ground_cloud_msg);
 
 	/*!
 	 * Obtains parameters from the command line, initializes subscribers and publishers.

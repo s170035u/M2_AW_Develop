@@ -25,8 +25,8 @@ roslaunchは、立ち上げるべきnodeと、セットされるべきパラメ�
 	<!-- Value to fill in the occupancy grid when a cell is OCCUPIED-->
 	<arg name="road_occupied_value" default="0" />      
 	<!-- Value to fill in the occupancy grid when a cell is NO ROAD-->
-	<arg name="no_road_value" default="255" />          
-	
+	<arg name="no_road_value" default="255" />   
+	<arg name="camera_height" default="1.2" />	
 	<arg name="map_resolution" default="0.25" />
     <arg name="map_x_size" default="40.0" />
     <arg name="map_y_size" default="25.0" />
@@ -45,6 +45,8 @@ roslaunchは、立ち上げるべきnodeと、セットされるべきパラメ�
 		<param name="road_free_value" value="$(arg road_free_value)" />
 		<param name="road_occupied_value" value="$(arg road_occupied_value)" />
 		<param name="no_road_value" value="$(arg no_road_value)" />
+		<param name="camera_height" value="$(arg camera_height)" />
+
 	</node>
 
 </launch>

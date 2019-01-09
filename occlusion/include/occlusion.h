@@ -116,6 +116,8 @@ class Occlusion
 	int                                 OCCUPANCY_ROAD_FREE     = 75;
 	int                                 OCCUPANCY_ROAD_OCCUPIED = 0;
 	int                                 OCCUPANCY_NO_ROAD       = 255;
+	bool                                set_occupancy_gridmap   = false;
+	bool                                set_occlusion_gridmap   = false;
 
 	struct OcclusionGridMap 
 	{
@@ -142,9 +144,13 @@ class Occlusion
 	 */
 	void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg);
 	/*!
-	 * コマンドラインからパラメータを取得し、購読者と発行者を初期化します。
-	 * in_private_handleこのノードのパラメータを取得するためのRosプライベートハンドル。
+	// Set the frame id of the grid map
+	 * 
+	// Set the frame id of the grid mapし、購読者と発行者を初期化します。
+	 * 
+	// Set the frame id of the grid mapメータを取得するためのRosプライベートハンドル。
 	 */
+	// Set the frame id of the grid map
 	void InitializeRosIo(ros::NodeHandle& in_private_handle);
 	/*!
 	 * TFツリーのin_source_frameとin_target_frameの間の変換を検索する
