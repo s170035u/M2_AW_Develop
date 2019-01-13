@@ -23,10 +23,10 @@ namespace object_map
 		private_node_handle_.param<double>("grid_position_x", grid_position_x_, 20);
 		private_node_handle_.param<double>("grid_position_x", grid_position_y_, 0);
 		
-		// オクルージョン領域を"occlusion_area"という名前のトピックにgrid_map_msgs::GridMap形式のノードを送ることを伝える
-		publisher_grid_map_ = node_handle_.advertise<grid_map_msgs::GridMap>("occlusion_area", 1, true);
-		// オクルージョンではない領域を"openning_area"という名前のトピックにros nav_msgs :: OccupancyGrid形式のノードを送ることを伝える
-		publisher_occupancy_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("openning_area", 1, true);
+		// オクルージョン領域を"occlusion_potential_field"という名前のトピックにgrid_map_msgs::GridMap形式のノードを送ることを伝える
+		publisher_grid_map_ = node_handle_.advertise<grid_map_msgs::GridMap>("occlusion_potential_field", 1, true);
+		// オクルージョンではない領域を"occupancy_potential_field"という名前のトピックにros nav_msgs :: OccupancyGrid形式のノードを送ることを伝える
+		publisher_occupancy_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("occupancy_potential_field", 1, true);
 		
 		obj_subscriber_ = nh_.subscribe("/detected_objects", 1,&PotentialField::obj_callback, this);
 	}
@@ -36,8 +36,6 @@ namespace object_map
 		bool set_map = false;
 		ros::Rate loop_rate(10);
 
-厳しいかも
-厳しいかも
 
 
 
@@ -68,8 +66,8 @@ namespace object_map
 
 
 
-厳しいかも
-		while厳しいかも (ros::ok())
+
+		while(ros::ok())
 		{
 			if (!set_map)
 			{
@@ -116,7 +114,7 @@ namespace object_map
 
 
 
-#include "occlusion.h"
+#include "occlusion_potential_field"
 
 // Publishのための関数
 // チェック完了
@@ -125,6 +123,7 @@ void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::str
 	// 配信用のレイヤーがデータに含まれている場合
 	if (input_grid_map.exists(input_layer_for_publish))
 	{
+		map.setTimestamp(time.toNSec());
 		// grid_map_msg/GridMap.msg型の変数
 		grid_map_msgs::GridMap ros_gridmap_message;
 		// nav_msgs/OccupancyGrid型の変数
@@ -158,7 +157,7 @@ void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_messa
 	// GridMap形式のROSメッセージをGridMapクラスで受け取る
 	grid_map::GridMapRosConverter::fromMessage(input_grid_message, input_grid);
 	// Road Occupancy Processorのグリッドマップデータをそのまま引用
-	gridmap_.add("occupancy_road_status", input_grid.get(occupancy_layer_name_));
+	gridmap_.add("occlusion_potential_field", input_grid.get(occupancy_layer_name_));
 	// フレームid
 	input_gridmap_frame_        = input_grid.getFrameId();
 	// グリッドマップの長さ（X,Y方向）
@@ -241,29 +240,19 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
     	Position rotated_right_btm  =   (std::cos(y) * (-len_x/2) - std::sin(y) * (-len_y/2) + pos_x ,
                         　  		     std::sin(y) * (-len_x/2) + std::cos(y) * (-len_y/2) + pos_y );
 		// 計算した位置を利用して，通行領域かつ物体があって見えない部分を求めていく
-		Index 
+		
 	}
 
 
     
 
-
-
-	for 
-
-r it(gridmap_); !it.isPastEnd(); ++it) {
-		
-
-osition;
-		// あるインデックスに対応するグリッドマップフレーム上での位置：代入
-		gridmap_.getPosition(*it, grid_position);
-		// レイヤー"occlusion"の中のインデックスitにデータを格納
-		gridmap_.at("occlusion", *it) = 1;// ここに計算式を組み込む
-		//
-
-	}
+		for (GridMapIterator it(map); !it.isPastEnd(); ++it) {
+      		Position position;
+     		map.getPosition(*it, position);
+			// レイヤー"occlusion_potential_field"の中のインデックスitにデータを格納
+			gridmap_.at("occlusion_potential_field", *it) = 1;// ここに計算式を組み込む
+			}
 	
-	}
 }
 
 
@@ -285,8 +274,6 @@ void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& gridmap_ros_in_m
 	gridmap_.add("Occupancy", input_grid.get(occupancy_layer_name_));
 	// Index(Eigen::Array2i)→[A,B]という形
 	gridmap::Index 
-
-
 }
 
 void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2::ConstPtr &in_ground_cloud_msg,

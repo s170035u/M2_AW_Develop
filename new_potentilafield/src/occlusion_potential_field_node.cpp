@@ -2,12 +2,11 @@
 #include <ros/ros.h>
 // ヘッダーファイル読み込み
 #include "occlusion_potential_field.h"
-// 
+// メイン関数
 int main(int argc, char **argv) {
   ros::init(argc, argv, "occlusion_potential_field");
-
-  PotentialField potential_field;
-  potential_field.init();
-  potential_field.run();
+  OcclusionPotentialField occlusion_potential_field;
+  occlusion_potential_field.init();
+  occlusion_potential_field.run();
   return 0;
 }
