@@ -34,13 +34,7 @@ namespace object_map
 	void WayareaToGrid::Run()
 	{
 		bool set_map = false;
-		ros::Rate loop_rate(10);
-
-厳しいかも
-厳しいかも
-
-
-
+		ros::Rate loop_rate(
 
 // ==========================================================================
 		// 見つけたすべての障害物すべてに対する処理
@@ -65,11 +59,7 @@ namespace object_map
       tf::Matrix3x3(quat).getRPY(r, p, y);
  // ==========================================================================
 
-
-
-
-厳しいかも
-		while厳しいかも (ros::ok())
+		while (ros::ok())
 		{
 			if (!set_map)
 			{
@@ -175,6 +165,8 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 {
 	// データをGridMapに格納していく
 	ros::Time time = ros::Time::now();
+	// occlusionという名前のレイヤーで初期化
+	gridmap_.add("occlusion", 0.0);
 	// 検出した物体の数すべてに対して反復しオクルージョン領域を計算していく
 	for (int i(0); i < (int)obj_msg->objects.size(); ++i) {
 	// 物体の位置Xを求める
@@ -256,6 +248,20 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
         vertex_position_y[3] = std::sin(y) * (-len_x/2) + std::cos(y) * (len_y/2) + pos_y;
 		// 原点と物体の角を通る直線の傾き
 		slope_center_to_vertex[3] = vertex_position_x[3]/vertex_position_y[3];
+
+
+
+		/* ******************************************************************************************
+		 * 物体がグリッドマップ領域にすべて入っているか確認する
+		 * ------------------------------------------------------------------------------------------
+		 * 物体がグリッドマップの外に要る場合は無視する
+		 * 
+		 * **************************************************************************************** */
+
+
+
+
+
 		/* ******************************************************************************************
 		 * 傾きの絶対値が一番大きい頂点を通る直線が，「オクルージョン領域」の境界を作る
 		 * ------------------------------------------------------------------------------------------
@@ -284,7 +290,7 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		// グリッドマップの縦横比を求める
 		double aspect_ratio_gridmap = gridmap_.getLength().x()/gridmap_.getLength().y();
 		// 物体が車両の右側にいる場合：傾きが負になっているはず
-		if(-vehicle_length/2 > pos_y) {
+		if(-center_width > pos_y) {
 			// ポリゴンのフレームIDをセット
 			occlusion_polygon.setFrameId(gridmap_.getFrameId());
 			// ポリゴン頂点を追加する（オクルージョン領域を作る頂点）
@@ -343,27 +349,27 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
 			}
 		// 物体が車両の右側にいる場合：傾きが正になっているはず
-		} else if ((vehicle_length/2 < pos_y)) {
+		} else if ((center_width < pos_y)) {
 			// ポリゴンのフレームIDをセット
 			occlusion_polygon.setFrameId(gridmap_.getFrameId());
 			// ポリゴン頂点を追加する（オクルージョン領域を作る頂点）
 			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
 			// 原点と物体の角を結ぶ直線がたどり着くGridMap境界を求めてポリゴンに追加する
-			if (-max_slope < aspect_ratio_gridmap)
+			if (max_slope < aspect_ratio_gridmap) {
 			/* ******************************************************************************************
 			 * 原点とオクルージョン領域を作り出す頂点を結ぶ直線とグリッドマップ境界が交わる点を求めていく
 			 * ------------------------------------------------------------------------------------------
 			 * オクルージョン直線の傾き < グリッドマップの縦横比　→　ポリゴン頂点が３つの三角形
 			 * オクルージョン直線の傾き > グリッドマップの縦横比　→　ポリゴン頂点が４つの四角形
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (-gridmap_.getLength().y() / 2 * max_slope) , (-gridmap_.getLength().y() / 2) ));
+			occlusion_polygon.addVertex(Position( (gridmap_.getLength().y() / 2 * max_slope) , (gridmap_.getLength().y() / 2) ));
 			/* ******************************************************************************************
 			 * オクルージョン領域を作り出す頂点から引いたY軸に平行な直線とグリッドマップ境界が交わる点を求めていく
 			 * ------------------------------------------------------------------------------------------
 			 * Xの値：オクルージョン領域を作り出す頂点と同じ
 			 * Yの値：ー（グリッドマップのY軸の長さ÷２）と同じ
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (max_vertex_position_x) , (-gridmap_.getLength().y() /2 ) ));
+			occlusion_polygon.addVertex(Position( (max_vertex_position_x) , (gridmap_.getLength().y() /2 ) ));
 			/* ******************************************************************************************
 			 * 最後にオクルージョン領域を作り出す頂点をポリゴンに追加すればポリゴンが完成
 			 * ------------------------------------------------------------------------------------------
@@ -371,121 +377,85 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			 * 最低４つのaddVertex関数が必要
 			 * **************************************************************************************** */
 			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
-		} 
-
-
-			if (slope_rotated_right_top < aspect_ratio_gridmap)
-			border_position_x[2] = -gridmap_.getLength().y() * slope_rotated_right_top;
-			border_position_y[2] = -gridmap_.getLength().y();
-			else 
-			border_position_x[2] = gridmap_.getLength().x();
-			border_position_y[2] = gridmap_.getLength().x() / slope_rotated_right_top;
+			} else {
 			/* ******************************************************************************************
-			 * グリッドマップの縦横比と直線の傾きを比較
+			 * 原点とオクルージョン領域を作り出す頂点を結ぶ直線とグリッドマップ境界が交わる点を求めていく
 			 * ------------------------------------------------------------------------------------------
-			 * グリッドマップの縦横比　＜　直線の傾き：Xの最大値をとる
-			 * グリッドマップの縦横比　＞　直線の傾き：Yの最大値をとる
+			 * オクルージョン直線の傾き < グリッドマップの縦横比　→　ポリゴン頂点が３つの三角形
+			 * オクルージョン直線の傾き > グリッドマップの縦横比　→　ポリゴン頂点が４つの四角形
 			 * **************************************************************************************** */
-			if (slope_rotated_right_btm < aspect_ratio_gridmap)
-			border_position_x[3] = -gridmap_.getLength().y() * slope_rotated_right_btm;
-			border_position_y[3] = -gridmap_.getLength().y();
-			else 
-			border_position_x[3] = gridmap_.getLength().x();
-			border_position_y[3] = gridmap_.getLength().x() / slope_rotated_right_btm;
+			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , (gridmap_.getLength().x() / 2 /max_slope) ));
+			/* ******************************************************************************************
+			 * グリッドマップの端を追加する
+			 * ------------------------------------------------------------------------------------------
+			 * X：X方向のグリッドマップの大きさ÷２
+			 * Y：Y方向のグリッドマップの大きさ÷２×−１
+			 * **************************************************************************************** */
+			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , (gridmap_.getLength().y() / 2 ) ));
+			/* ******************************************************************************************
+			 * オクルージョン領域を作り出す頂点から引いたY軸に平行な直線とグリッドマップ境界が交わる点を求めていく
+			 * ------------------------------------------------------------------------------------------
+			 * Xの値：オクルージョン領域を作り出す頂点と同じ
+			 * Yの値：ー（グリッドマップのY軸の長さ÷２）と同じ
+			 * **************************************************************************************** */
+			occlusion_polygon.addVertex(Position( (max_vertex_position_x) , (gridmap_.getLength().y() /2 ) ));
+			/* ******************************************************************************************
+			 * 最後にオクルージョン領域を作り出す頂点をポリゴンに追加すればポリゴンが完成
+			 * ------------------------------------------------------------------------------------------
+			 * ３つの頂点を持つポリゴンとなる
+			 * 最低４つのaddVertex関数が必要
+			 * **************************************************************************************** */
+			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
+			}
+		// 物体が車両の前方にいる場合：傾きは正と負でどちらも現れる
+		} else {
+			// ポリゴンのフレームIDをセット
+			occlusion_polygon.setFrameId(gridmap_.getFrameId());
+			// 傾きの最大値が一番大きい（正の大きさ）頂点のiteratorオブジェクトを取得する
+			max_slope_ite_positive = std::max_element(slope_center_to_vertex.begin(), slope_center_to_vertex.end());
+			// iteratorオブジェクトから配列のインデックスを求める
+			int max_index_vertex_positive = std::distance(slope_center_to_vertex.begin(), max_slope_ite_positive);
+			// オクルージョン領域を作る物体の頂点の座標を求めるX
+			double max_vertex_position_x_positive = vertex_position_x[max_index_vertex_positive];
+			// オクルージョン領域を作る物体の頂点の座標を求めるY
+			double max_vertex_position_y_positive = vertex_position_y[max_index_vertex_positive];
+			// 傾きの最大値が一番大きい（負の大きさ）頂点のiteratorオブジェクトを取得する
+			max_slope_ite_negative = std::min_element(slope_center_to_vertex.begin(), slope_center_to_vertex.end());
+			// iteratorオブジェクトから配列のインデックスを求める
+			int max_index_vertex_negative = std::distance(slope_center_to_vertex.begin(), max_slope_ite_negative);
+			// オクルージョン領域を作る物体の頂点の座標を求めるX
+			double max_vertex_position_x_negative = vertex_position_x[max_index_vertex_negative];
+			// オクルージョン領域を作る物体の頂点の座標を求めるY
+			double max_vertex_position_y_negative = vertex_position_y[max_index_vertex_negative];
+			// まず車両から見えている物体の左側をポリゴンに追加する
+			occlusion_polygon.addVertex(Position( max_vertex_position_x_positive , max_vertex_position_y_positive ));
+			// 次に車両から見えている物体の右側をポリゴンに追加する
+			occlusion_polygon.addVertex(Position( max_vertex_position_x_negative , max_vertex_position_y_negative ));
+			// 右側から物体の奥（マップ境界）をポリゴンに追加する
+			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , max_vertex_position_y_negative ));
+			// 左側から物体の奥（マップ境界）をポリゴンに追加する
+			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , max_vertex_position_y_positive ));
+			// 車両から見えている物体の左側をポリゴンに追加して終了
+			occlusion_polygon.addVertex(Position( max_vertex_position_x_positive , max_vertex_position_y_positive ));
 		}
-		// 物体が車両の左側にいる場合
-		if(vehicle_length/2 < pos_y){
-			// 原点と物体の角を結ぶ直線がたどり着くGridMap境界を求める
-			/* ******************************************************************************************
-			 * グリッドマップの縦横比と直線の傾きを比較
-			 * ------------------------------------------------------------------------------------------
-			 * グリッドマップの縦横比　＜　直線の傾き：Xの最大値をとる
-			 * グリッドマップの縦横比　＞　直線の傾き：Yの最大値をとる
-			 * **************************************************************************************** */
-			if (slope_rotated_left_top < aspect_ratio_gridmap)
-			border_position_x[0] = gridmap_.getLength().y() * slope_rotated_left_top;
-			border_position_y[0] = gridmap_.getLength().y();
-			else 
-			border_position_x[0] = gridmap_.getLength().x();
-			border_position_y[0] = gridmap_.getLength().x() / slope_rotated_left_top;
-			/* ******************************************************************************************
-			 * グリッドマップの縦横比と直線の傾きを比較
-			 * ------------------------------------------------------------------------------------------
-			 * グリッドマップの縦横比　＜　直線の傾き：Xの最大値をとる
-			 * グリッドマップの縦横比　＞　直線の傾き：Yの最大値をとる
-			 * **************************************************************************************** */
-			if (slope_rotated_left_btm < aspect_ratio_gridmap)
-			border_position_x[1] = gridmap_.getLength().y() * slope_rotated_left_btm;
-			border_position_y[1] = gridmap_.getLength().y();
-			else 
-			border_position_x[1] = gridmap_.getLength().x();
-			border_position_y[1] = gridmap_.getLength().x() / slope_rotated_left_btm;
-			/* ******************************************************************************************
-			 * グリッドマップの縦横比と直線の傾きを比較
-			 * ------------------------------------------------------------------------------------------
-			 * グリッドマップの縦横比　＜　直線の傾き：Xの最大値をとる
-			 * グリッドマップの縦横比　＞　直線の傾き：Yの最大値をとる
-			 * **************************************************************************************** */
-			if (slope_rotated_right_top < aspect_ratio_gridmap)
-			border_position_x[2] = gridmap_.getLength().y() * slope_rotated_right_top;
-			border_position_y[2] = gridmap_.getLength().y();
-			else 
-			border_position_x[2] = gridmap_.getLength().x();
-			border_position_y[2] = gridmap_.getLength().x() / slope_rotated_right_top;
-			/* ******************************************************************************************
-			 * グリッドマップの縦横比と直線の傾きを比較
-			 * ------------------------------------------------------------------------------------------
-			 * グリッドマップの縦横比　＜　直線の傾き：Xの最大値をとる
-			 * グリッドマップの縦横比　＞　直線の傾き：Yの最大値をとる
-			 * **************************************************************************************** */
-			if (slope_rotated_right_btm < aspect_ratio_gridmap)
-			border_position_x[3] = gridmap_.getLength().y() * slope_rotated_right_btm;
-			border_position_y[3] = gridmap_.getLength().y();
-			else 
-			border_position_x[3] = gridmap_.getLength().x();
-			border_position_y[3] = gridmap_.getLength().x() / slope_rotated_right_btm;
+		for (grid_map::PolygonIterator iterator(gridmap_, occlusion_polygon); 
+			!iterator.isPastEnd(); ++iterator) {
+		　// オクルージョン領域に値111を代入していく
+		  map_.at("occlusion", *iterator) = 111;
 		}
-		// gridmap_
-		gridmap_["occlusion"].setZero();
-
-
-		// 直線を引いた４本の中で最大値を取得する 
-		double max_x_border = std::max(border_position_x_left_top,border_position_x_left_btm,border_position_x_right_top,border_position_x_right_btm);
-		// 最大値がマップのX方向に到達している場合いくつかのインデックスを取りうる
-		if (max_x_border == gridmap_.getLength().x()/2){
-			//  
-			
-		}
-		// 
-			
-
-	
-	}
-
-
-    
-
-
-
-	for 
-
-r it(gridmap_); !it.isPastEnd(); ++it) {
 		
-
-osition;
-		// あるインデックスに対応するグリッドマップフレーム上での位置：代入
-		gridmap_.getPosition(*it, grid_position);
-		// レイヤー"occlusion"の中のインデックスitにデータを格納
-		gridmap_.at("occlusion", *it) = 1;// ここに計算式を組み込む
-		//
-
+	}//// 検出した物体が専有領域にいる場合
 	}
-	
-	}
+	// polygonをメッセージとして出力
+		geometry_msgs::PolygonStamped message;
+		// 
+  		grid_map::PolygonRosConverter::toMessage(occlusion_polygon, polygon_message);
+		// 
+  		polygonPublisher_.publish(polygon_message);
+		// 
+		// occlusion計算後のGridMapをパブリッシュする：引数（配信用GridMap，配信用GridMapに）
+		PublishGridMap(gridmap_, "occlusion");
 }
-
-
-
 
 // Road Occupancy Processor のノードからGridMap形式のメッセージを受け取った時
 void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& gridmap_ros_in_message)
@@ -841,7 +811,7 @@ RosRoadOccupancyProcessorApp::RosRoadOccupancyProcessorApp()
 Occlusion::GeneratePolygon()
 {
 	// オクルージョン領域を示す"Polygon"を定義する
-    grid_mastd::sin(-1.0 * y) * (position.x() - pos_x) +p::Polygon polygon;
+    grid_map::Polygon polygon;
 	// Fram                            		std::cos(-1.0 * y) * (position.y() - pos_y) +eIdをセットする
     polygon                            		pos_y;.setFrameId(map_.getFrameId());
 	// オク							ルージョン領域の形成する頂点追加
