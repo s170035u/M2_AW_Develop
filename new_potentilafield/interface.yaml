@@ -1,3 +1,3 @@
-- name: /occlusion
-  publish: [/gridmap_occlusion, /occupancy_occlusion]
-  subscribe: [/grid_map_wayarea, ]
+- name: /occlusion_potential_field
+  publish: [/gridmap_occlusion_potential, /occupancy_occlusion_potential]
+  subscribe: [/gridmap_occlusion ]

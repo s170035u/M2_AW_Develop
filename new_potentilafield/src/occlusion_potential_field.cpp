@@ -1,8 +1,5 @@
-#include "wayarea2grid.h"
-
 namespace object_map
 {
-
 	WayareaToGrid::WayareaToGrid() :
 			private_node_handle_("~")
 	{
@@ -11,62 +8,11 @@ namespace object_map
 	}
 
 
-	void WayareaToGrid::InitializeRosIo()
-	{
-		// private_node_handleはプライベートパラメータを呼び出すためのノードハンドル
-		// .launch で引数とった，もしくはdefaultの値が用いられているので使用
-		private_node_handle_.param<std::string>("sensor_frame", sensor_frame_, "velodyne");
-		private_node_handle_.param<std::string>("map_frame", map_frame_, "map");
-		private_node_handle_.param<double>("grid_resolution", grid_resolution_, 0.2);
-		private_node_handle_.param<double>("grid_length_x", grid_length_x_, 80);
-		private_node_handle_.param<double>("grid_length_y", grid_length_y_, 30);
-		private_node_handle_.param<double>("grid_position_x", grid_position_x_, 20);
-		private_node_handle_.param<double>("grid_position_x", grid_position_y_, 0);
-		
-		// オクルージョン領域を"occlusion_potential_field"という名前のトピックにgrid_map_msgs::GridMap形式のノードを送ることを伝える
-		publisher_grid_map_ = node_handle_.advertise<grid_map_msgs::GridMap>("occlusion_potential_field", 1, true);
-		// オクルージョンではない領域を"occupancy_potential_field"という名前のトピックにros nav_msgs :: OccupancyGrid形式のノードを送ることを伝える
-		publisher_occupancy_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("occupancy_potential_field", 1, true);
-		
-		obj_subscriber_ = nh_.subscribe("/detected_objects", 1,&PotentialField::obj_callback, this);
-	}
 
 	void WayareaToGrid::Run()
 	{
 		bool set_map = false;
 		ros::Rate loop_rate(10);
-
-
-
-
-
-// ==========================================================================
-		// 見つけたすべての障害物すべてに対する処理
-		for (int i(0); i < (int)obj_msg->objects.size(); ++i) {
-
-		}
-		
-		// 見つけた物体の位置 X [m]
-		double pos_x = obj_msg->objects.at(i).pose.position.x;
-		// 見つけた物体の位置 Y [m]
-		double pos_y = obj_msg->objects.at(i).pose.position.y;
-		// 見つけた物体のx方向長さ L_x [m]
-        double len_x = obj_msg->objects.at(i).dimensions.x / 2.0;
-        // 見つけた物体のy方向長さ L_y [m]
-		double len_y = obj_msg->objects.at(i).dimensions.y / 2.0;
-		// 
-      double r, p, y;
-      tf::Quaternion quat(obj_msg->objects.at(i).pose.orientation.x,
-                          obj_msg->objects.at(i).pose.orientation.y,
-                          obj_msg->objects.at(i).pose.orientation.z,
-                          obj_msg->objects.at(i).pose.orientation.w);
-      tf::Matrix3x3(quat).getRPY(r, p, y);
- // ==========================================================================
-
-
-
-
-
 		while(ros::ok())
 		{
 			if (!set_map)
@@ -252,6 +198,7 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			// レイヤー"occlusion_potential_field"の中のインデックスitにデータを格納
 			gridmap_.at("occlusion_potential_field", *it) = 1;// ここに計算式を組み込む
 			}
+	map_.setTimestamp(time.toNSec());
 	
 }
 
@@ -458,7 +405,7 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 
 }
 // mainプログラム：init()
-void Occlusion::init(ros::NodeHandle &in_private_handle)
+void init(ros::NodeHandle &in_private_handle)
 {
 	// ！！！要チェック！！！
 	std::string occupancy_topic_str
@@ -499,54 +446,43 @@ void Occlusion::init(ros::NodeHandle &in_private_handle)
 	/* ******************************************************************************************
 	 * サブスクライバー宣言
 	 * ------------------------------------------------------------------------------------------
-	 * 
-	 * 
-	 * 
+	 * ① /occlusion ：オクルージョン領域が計算されたGridMap形式のメッセージトピック
+	 * ② /occlusion_polygon :オクルージョン領域 
 	 * **************************************************************************************** */
-	// サブスクライバー宣言：Road Occupancy Grid ノードが配信するトピックを購読
 	// トピックを受け取った場合→&Occlusion::OccupancyCallback関数を呼び出す
-	gridmap_subscriber_ = node_handle_.subscribe(occupancy_topic_str, 1, &Occlusion::OccupancyCallback, this);
-	ROS_INFO("[%s] Subscribing to... %s",occlusion, occupancy_topic_str.c_str());
+	gridmap_subscriber_ = node_handle_.subscribe("/occlusion_polygon"), 1, &OcclusionPotentialField::GridmapCallback, this);
+	ROS_INFO("[%s] Subscribing to... /occlusion_polygon","OcclusionPotentialField");
 	// サブスクライバー宣言：トピック "DetectedObjects" を購読
 	// トピックを受け取った場合→&Occlusion::OccupancyCallback関数を呼び出す
-	objects_subscriber_ = node_handle_.subscribe("/detected_objects", 1, &Occlusion::ObjectCallback, this);
-	ROS_INFO("[%s] Subscribing to... /detected_objects",occlusion);
+	objects_subscriber_ = node_handle_.subscribe("/occlusion", 1, &OcclusionPotentialField::PolygonCallback, this);
+	ROS_INFO("[%s] Subscribing to... /detected_objects","OcclusionPotentialField");
 	/* ******************************************************************************************
 	 * パブリッシャー宣言
 	 * ------------------------------------------------------------------------------------------
-	 * 
-	 * 
-	 * 
+	 * ① /occlusion_potential_field ：オクルージョン領域が計算されたGridMap形式のメッセージトピック
+	 * ② /occlusion_potential_polygon :オクルージョン領域 
 	 * **************************************************************************************** */
-	// パブリッシャー宣言：Occlusion ノードとして配信するトピックを登録
-	publisher_grid_map_= node_handle_.advertise<grid_map_msgs::GridMap>("gridmap_occlusion", 1);
-	ROS_INFO("[%std::sin(-1.0 * y) * (position.x() - pos_x) +
-                            		std::cos(-1.0 * y) * (position.y() - pos_y) +
-                            		pos_y;
-							s] Publishing GridMap in gridmap_road_status",occlusion);
-	// パブリッシャー宣言：Occlusion ノードとして配信するトピックを登録
-	publisher_occupancy_grid_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("occupancy_occlusion", 1);
-	ROS_INFO("[%s] Publishing Occupancy grid in occupancy_road_status",occlusion);
+	// オクルージョン領域を"occlusion_potential_field"という名前のトピックにgrid_map_msgs::GridMap形式のノードを送ることを伝える
+	publisher_grid_map_ = node_handle_.advertise<grid_map_msgs::GridMap>("/occlusion_potential_field", 1, true);
+	ROS_INFO("[%s] Publishing GridMap in gridmap_road_status","OcclusionPotentialFIeld");
+	// オクルージョンではない領域を"occupancy_potential_field"という名前のトピックにros nav_msgs :: OccupancyGrid形式のノードを送ることを伝える
+	publisher_occupancy_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("/occupancy_potential_field", 1, true);
+	ROS_INFO("[%s] Publishing Occupancy grid in occupancy_road_status","OccupancyPotentialField");	
 	// デバック用
 	ROS_INFO("Created Map");
 	// フレームIDセット（デフォルト：velodyne　←　WayAreaノードから引き継がれている）
-	gridmap_.setFrameId(input_gridmap_frame_);
+	map_.setFrameId(input_gridmap_frame_);
 	// ジオメトリ情報セット（） 
-    gridmap_.setGeometry(input_gridmap_length_,
+    map_.setGeometry(input_gridmap_length_,
 	                     input_gridmap_resolution_,
 	                     input_gridmap_position_);
 	// デバック用					 
     ROS_INFO("Created map with size %f x %f m (%i x %i cells).",
-    gridmap_.getLength().x(), gridmap_.getLength().y(),
-    gridmap_.getSize()(0), gridmap_.getSize()(1));
-	// Occulusion用のレイヤーを用意
-	gridmap_.add(output_layer_name_);
-	// Occulusion用のレイヤーの数値を初期化する（すべての領域はオクルージョン領域ではないとする）
-	for (GridMapIterator it(gridmap_); !it.isPastEnd(); ++it) {
-    Position position;
-    map_.getPosition(*it, position);
-    map_.at(output_layer_name_, *it) = 0.0;
-  	}
+   // OcculusionPotentialFIeld用のレイヤーを用意
+	map_.add(output_layer_name_);
+	// OcculusionPotentialFIeld用のレイヤーの数値を初期化する（すべての領域はオクルージョン領域ではないとする）
+	map_.add(output_layer_name_).setConstant(0.0);
+
   
 
 }

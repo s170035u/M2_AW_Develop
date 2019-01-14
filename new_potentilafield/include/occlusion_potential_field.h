@@ -4,9 +4,9 @@
  * ・外部からアクセスできるクラス定義
  ********************************************************************************************/
 // ヘッダーファイルは定数やデータ構造を定義するのに役立つ
-#ifndef OCCLUSION_H
+#ifndef OCCLUSION_POTENTIAL_FIELD_H
 // 同じファイルを複数回インクルードしないようにシンボルを定義するようにする
-#define OCCLUSION_H
+#define OCCLUSION_POTENTIAL_FIELD_H
 // 入出力機能に関する基本的な型や関数を使用する目的でヘッダーをインクルード
 #include <iostream>
 // ベクトル
@@ -81,21 +81,22 @@
 // これはROS ImageメッセージとOpenCVイメージを変換するCvBridgeを含みます。
 #include <cv_bridge/cv_bridge.h>
 #endif
-class Occlusion
+// 
+class OcclusionPotentialField
 { 
 	// ノードハンドラ
-	ros::NodeHandle                     node_handle_;
+	ros::NodeHandle                     nh_;
     // パブリッシャー：navmsg
-	ros::Publisher                      publisher_occupancy_grid_;
+	ros::Publisher                      publisher_occupancy_;
 	// パブリッシャー：gridmap
-	ros::Publisher                      publisher_grid_map_;
-	// サブスクライブされたGridMapクラス
-	grid_map::GridMap                   gridmap_;
+	ros::Publisher                      publisher_grid_;
+	// GridMapクラス
+	grid_map::GridMap                   map_;
 	// 座標変換
-	tf::TransformListener*              transform_listener_;
-	// Road Occupancy Processor が格納されているレイヤーの中身 
-	std::string                         occupancy_layer_name_;
-	// Occlusion情報を格納するGidMapレイヤーの名前
+	tf::TransformListener*              tf_listener_;
+	// Occlusion が格納されているレイヤーの中身 
+	std::string                         occlusion_layer_name_;
+	// OcclusionPotentialField情報を格納するGidMapレイヤーの名前
 	std::string                         output_layer_name_;
 	// Grid Map フレーム
 	std::string                         input_gridmap_frame_;
@@ -107,8 +108,8 @@ class Occlusion
     grid_map::Position                  input_gridmap_position_;
 	// Grid Map 形式のメッセージをサブスクライブする
 	ros::Subscriber                     gridmap_subscriber_;
-    // Grid Map 形式のメッセージをサブスクライブする
-	ros::Subscriber                     objects_subscriber_;
+    // Grid Map::Polygon 形式のメッセージをサブスクライブする
+	ros::Subscriber                     polygon_subscriber_;
 	// パラメータ
 	const int                           grid_min_value_         = 0;
 	const int                           grid_max_value_         = 255;
@@ -119,11 +120,6 @@ class Occlusion
 	bool                                set_occupancy_gridmap   = false;
 	bool                                set_occlusion_gridmap   = false;
 
-	struct OcclusionGridMap 
-	{
-		tf::Vector2d Position;
-		tf::Vector2d Directions;
-	}
 	/*!
 	 * 現在のインスタンスに含まれているGridMapオブジェクトを公開します。
 	 * @param[in] 公開するGridMap
@@ -136,13 +132,13 @@ class Occlusion
 	 * GridMapメッセージを受け取り、その形状、占有ビットマップを抽出します
 	 * @param in_message 受信したメッセージ
 	 */
-	void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
+	void GridmapCallback(const grid_map_msgs::GridMap& input_grid_message)
 	/*!
 	 * コールバック関数
 	 * DetectedObjectArrayメッセージを受け取り、その位置、姿勢、大きさを抽出する
 	 * @param in_message 受信したメッセージ
 	 */
-	void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg);
+	void PolygonCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg);
 	/*!
 	// Set the frame id of the grid map
 	 * 
@@ -173,7 +169,7 @@ public:
 	// 
 	void run();
 	// 
-	Occlusion();
+	OcclusionPotentialField();
 };
 //------------------------------------------------------------------------------------------------------------
 /*!
