@@ -96,14 +96,14 @@ void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::str
 }
 // Road Occupancy Processorからメッセージを受け取った時に呼び出される：callback関数
 // チェック完了
-void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
+void OcclusionPotentialFIeld::GridCallback(const grid_map_msgs::GridMap& input_grid_message)
 {
 	// メッセージを受け取るための変数
 	grid_map::GridMap input_grid;
 	// GridMap形式のROSメッセージをGridMapクラスで受け取る
 	grid_map::GridMapRosConverter::fromMessage(input_grid_message, input_grid);
 	// Road Occupancy Processorのグリッドマップデータをそのまま引用
-	gridmap_.add("occlusion_potential_field", input_grid.get(occupancy_layer_name_));
+	map_.add("occlusion_potential_field", input_grid.get(occupancy_layer_name_));
 	// フレームid
 	input_gridmap_frame_        = input_grid.getFrameId();
 	// グリッドマップの長さ（X,Y方向）
@@ -112,12 +112,29 @@ void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_messa
 	input_gridmap_resolution_   = input_grid.getResolution();
 	// グリッドマップの位置
 	input_gridmap_position_     = input_grid.getPosition();
-	// レイヤーとして追加する
+	// 初期化
+	map["occlusion_potential_field"].setZero();
+	// ループ処理でオクルージョン領域を生み出しているポリゴン頂点を割り出す
+	for (GridMapIterator it(map); !it.isPastEnd(); ++it) {
+      Position position;
+      map.getPosition(*it, position);
+	  if (==0)
+      map.at("elevation", *it) = -0.04 + 0.2 * std::sin(3.0 * time.toSec() + 5.0 * position.y()) * position.x();
+    }
+
+
+
+
+
+
 }
 // Detected Object メッセージを受け取った時に呼び出される：callback関数
 // チェック完了
 void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg)
 {
+
+
+
 	// データをGridMapに格納していく
 	ros::Time time = ros::Time::now();
 	// 検出した物体の数すべてに対して反復しオクルージョン領域を計算していく

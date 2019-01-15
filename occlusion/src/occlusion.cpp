@@ -438,23 +438,33 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			// 車両から見えている物体の左側をポリゴンに追加して終了
 			occlusion_polygon.addVertex(Position( max_vertex_position_x_positive , max_vertex_position_y_positive ));
 		}
+		bool isOcclusionOriginSet = false;
 		for (grid_map::PolygonIterator iterator(gridmap_, occlusion_polygon); 
 			!iterator.isPastEnd(); ++iterator) {
+		  if (!isOcclusionOriginSet) {
+		  map_.at("occlusion", *iterator) = 77;
+		  isOcclusionOriginSet = true;
+		  }
 		　// オクルージョン領域に値111を代入していく
 		  map_.at("occlusion", *iterator) = 111;
 		}
 		
-	}//// 検出した物体が専有領域にいる場合
-	}
+	}// 検出した物体が専有領域にいる場合
+	}// for (int i(0); i < (int)obj_msg->objects.size(); ++i) {
+	/* ******************************************************************************************
+     * ポリゴン
+	 * ------------------------------------------------------------------------------------------
+	 * 
+	 * 
+	 * **************************************************************************************** */
 	// polygonをメッセージとして出力
-		geometry_msgs::PolygonStamped message;
-		// 
-  		grid_map::PolygonRosConverter::toMessage(occlusion_polygon, polygon_message);
-		// 
-  		polygonPublisher_.publish(polygon_message);
-		// 
-		// occlusion計算後のGridMapをパブリッシュする：引数（配信用GridMap，配信用GridMapに）
-		PublishGridMap(gridmap_, "occlusion");
+	geometry_msgs::PolygonStamped message;
+	// 
+  	grid_map::PolygonRosConverter::toMessage(occlusion_polygon, polygon_message);
+	// 
+  	polygonPublisher_.publish(polygon_message); 
+	// occlusion計算後のGridMapをパブリッシュする：引数（配信用GridMap，配信用GridMapに）
+	PublishGridMap(gridmap_, "occlusion");
 }
 
 // Road Occupancy Processor のノードからGridMap形式のメッセージを受け取った時
