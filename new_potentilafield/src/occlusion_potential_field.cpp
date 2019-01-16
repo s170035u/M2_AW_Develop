@@ -98,12 +98,10 @@ void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::str
 // チェック完了
 void OcclusionPotentialFIeld::GridCallback(const grid_map_msgs::GridMap& input_grid_message)
 {
-	// メッセージを受け取るための変数
+	// メッセージを受け取るためのGridMap型変数
 	grid_map::GridMap input_grid;
 	// GridMap形式のROSメッセージをGridMapクラスで受け取る
 	grid_map::GridMapRosConverter::fromMessage(input_grid_message, input_grid);
-	// Road Occupancy Processorのグリッドマップデータをそのまま引用
-	map_.add("occlusion_potential_field", input_grid.get(occupancy_layer_name_));
 	// フレームid
 	input_gridmap_frame_        = input_grid.getFrameId();
 	// グリッドマップの長さ（X,Y方向）
@@ -112,17 +110,224 @@ void OcclusionPotentialFIeld::GridCallback(const grid_map_msgs::GridMap& input_g
 	input_gridmap_resolution_   = input_grid.getResolution();
 	// グリッドマップの位置
 	input_gridmap_position_     = input_grid.getPosition();
-	// 初期化
-	map["occlusion_potential_field"].setZero();
-	// ループ処理でオクルージョン領域を生み出しているポリゴン頂点を割り出す
-	for (GridMapIterator it(map); !it.isPastEnd(); ++it) {
-      Position position;
-      map.getPosition(*it, position);
-	  if (==0)
-      map.at("elevation", *it) = -0.04 + 0.2 * std::sin(3.0 * time.toSec() + 5.0 * position.y()) * position.x();
+	// OcclusionPotentialField用
+	map_.add("occlusion_potential_field", 0.0);
+	// オクルージョン領域を生み出しているポリゴン頂点の位置X
+	std::vector<double> x_position_polygon_origin;
+	// オクルージョン領域を生み出しているポリゴン頂点の位置Y
+	std::vector<double> y_position_polygon_origin;
+	// イテレータ用変数：現在のイテレータに対応する位置を格納する
+	Position pos_it;
+	// オクルージョン領域の面積
+	double occlusion_square_measure = 0.0;
+	/* ******************************************************************************************
+	 * ループ処理で・オクルージョン領域を生み出しているポリゴン頂点を割り出す
+	 * 　　　　　　・オクルージョン領域の面積を計算する
+	 * ------------------------------------------------------------------------------------------
+	 * 改善案：自車位置より前にしかポリゴンは存在していないためSubmapIteratorで計算不可軽減
+	 * **************************************************************************************** */
+	for (GridMapIterator it(map_); !it.isPastEnd(); ++it) {
+	　  // イテレータが指し示すセルの位置を格納する変数
+      	Position position;
+	 	// 変数positionにOcclusionPotentialFieldにおける現在のループでの位置を格納
+      	map_.getPosition(*it, position);
+	 	// サブスクライブした"/Occlusion"からオクルージョン領域を生み出しているポリゴン頂点を求める
+	 	int cell_value_it = static_cast<int>input_grid.atPosition("occlusion", position);
+	  	// 値が77の時：オクルージョン領域を生み出しているポリゴン頂点
+	  	if (cell_value_it == 77){
+			  // ポリゴン頂点（X座標）を行列に追加していく
+			  x_position_polygon_origin.push_back(position(0));
+			  // ポリゴン頂点（Y座標）を行列に追加していく
+			  y_position_polygon_origin.push_back(position(1));
+	  	}
+		// 値が100の時，オクルージョン領域
+	  	if (cell_value_it == 100){
+			  // オクルージョン領域の面積を求める
+			  occlusion_square_measure += std::pow(input_gridmap_resolution_ , 2.0);
+		}
+    }// GridMap Iterator
+	/* ******************************************************************************************
+	* Occlusion領域が存在している場合のみ、ポテンシャルフィールドが生成される
+	* ------------------------------------------------------------------------------------------
+	* 
+	* **************************************************************************************** */
+	if( !x_position_polygon_origin.empty() ) {
+		/* ******************************************************************************************
+	 	* ポテンシャルフィールド生成
+	 	* ------------------------------------------------------------------------------------------
+	 	* 改善案：ROSにはtfがあり使えば多くの機能を使えばコードを短くできるかもしれない
+	 	* →GridMapは２次元なので簡単に座標変換できるためここでは使用しない
+	 	* **************************************************************************************** */
+		// 見つけたオクルージョン領域の数
+		std::size_t num_occlusions = x_position_polygon_origin.size();
+		// オクルージョン領域の数だけループを回していく
+		for(int i = 0; i < num_occlusions; i++){
+			// サブマップの大きさ（X方向のグリッドの数）を指定する
+			int buffersize_x = static_cast<int>(x_position_polygon_origin[i] / input_gridmap_resolution_); 
+			// サブマップの大きさ（Y方向のグリッドの数）を指定する
+			int buffersize_y = static_cast<int>(y_position_polygon_origin[i] / input_gridmap_resolution_); 
+			// オクルージョン領域を生み出すポリゴン頂点の位置
+			Position occlusion_polygon = (x_position_polygon_origin[i] , y_position_polygon_origin[i]);
+			// オクルージョン領域を生み出すポリゴン頂点のインデックス
+			Index occlusion_start_index;
+			// インデックスを取得する
+			map_.getIndex(occlusion_polygon , occlusion_start_index);
+			/* ******************************************************************************************
+	 		* サブマップ作成
+	 		* ------------------------------------------------------------------------------------------
+			* 物体が車両進行方向左側に存在する場合：イテレータは左から右に流れるため原点インデックスは"occlusion_start_index"
+			* 物体が車両進行方向右側に存在する場合：イテレータは左から右に流れるため原点インデックスは"
+			* 
+			* 改善案：ROSにはtfがあり使えば多くの機能を使えばコードを短くできるかもしれない
+	 		* →GridMapは２次元なので簡単に座標変換できるためここでは使用しない
+	 		* **************************************************************************************** */
+		 	// 物体が車両進行方向左側に存在する場合
+			if (y_position_polygon_origin[i] > 0){
+				// サブマップの大きさを設定する
+				Index submap_buffer_size(buffersize_x , buffersize_y);
+				// サブマップイテレータでオクルージョン領域から自車までの計算のみ行う
+				for (grid_map::SubmapIterator iterator(map_, occlusion_start_index, submap_buffer_size);
+     				!iterator.isPastEnd(); ++iterator) {
+						// 現在ループにおける位置情報を取得
+						map_.getPosition(*it, pos_it);
+	 	 				/* ******************************************************************************************
+	 					* 座標変換を行う
+	 					* ------------------------------------------------------------------------------------------
+						* Occlusion領域を検出したGridMap上の座標系から
+						* ポテンシャルフィールド計算用のオクルージョン領域を生み出すポリゴン頂点をゼロ点とし
+						* GridMap座標系を１８０度回転させた座標系へ変換する
+						* 
+						* 改善案：ROSにはtfがあり使えば多くの機能を使えばコードを短くできるかもしれない
+	 					* →GridMapは２次元なので簡単に座標変換できるためここでは使用しない
+	 					* **************************************************************************************** */
+						// ポテンシャルフィールド座標系におけるX
+						x_it_occlusion_axis = x_position_polygon_origin[i] - pos_it(0);
+						// ポテンシャルフィールド座標系におけるY
+						y_it_occlusion_axis = y_position_polygon_origin[i] - pos_it(1);
+						// ポテンシャルフィールド計算
+						map_.at("occlusion_potential_field", *iterator) = occlusion_square_measure /  std::hypot(x_it_occlusion_axis,y_it_occlusion_axis);
+				}// grid_map::SubmapIterator 
+			}// 物体が車両進行方向左側に存在する場合
+			/* ******************************************************************************************
+	 		* サブマップ作成
+	 		* ------------------------------------------------------------------------------------------
+			* 物体が車両進行方向左側に存在する場合：イテレータは左から右に流れるため原点インデックスは"occlusion_start_index"
+			* 物体が車両進行方向右側に存在する場合：イテレータは左から右に流れるため原点インデックスは"
+			* 
+			* 改善案：ROSにはtfがあり使えば多くの機能を使えばコードを短くできるかもしれない
+	 		* →GridMapは２次元なので簡単に座標変換できるためここでは使用しない
+	 		* **************************************************************************************** */
+			// 物体が車両進行方向右側に存在する場合
+			if (y_position_polygon_origin[i] < 0){
+				// サブマップの開始点となる位置
+				Position position_submap_origin = (x_position_polygon_origin[i] , 0.0);
+				// サブマップの開始点となるインデックス
+				Index submap_start_index;
+				// インデックスを取得する
+				map_.getIndex(position_submap_origin , submap_start_index);
+				// サブマップの大きさを設定する
+				Index submap_buffer_size(buffersize_x , buffersize_y);
+				// サブマップイテレータでオクルージョン領域から自車までの計算のみ行う
+				for (grid_map::SubmapIterator iterator(map_, occlusion_start_index, submap_buffer_size);
+     				!iterator.isPastEnd(); ++iterator) {
+						// 現在ループにおける位置情報を取得
+						map_.getPosition(*it, pos_it);
+	 	 				/* ******************************************************************************************
+	 					* 座標変換を行う
+	 					* ------------------------------------------------------------------------------------------
+						* Occlusion領域を検出したGridMap上の座標系から
+						* ポテンシャルフィールド計算用のオクルージョン領域を生み出すポリゴン頂点をゼロ点とし
+						* GridMap座標系を１８０度回転させた座標系へ変換する
+						* 
+						* 改善案：ROSにはtfがあり使えば多くの機能を使えばコードを短くできるかもしれない
+	 					* →GridMapは２次元なので簡単に座標変換できるためここでは使用しない
+	 					* **************************************************************************************** */
+						// ポテンシャルフィールド座標系におけるX
+						x_it_occlusion_axis = x_position_polygon_origin[i] - pos_it(0);
+						// ポテンシャルフィールド座標系におけるY
+						y_it_occlusion_axis = y_position_polygon_origin[i] - pos_it(1);
+						// ポテンシャルフィールド計算
+						map_.at("occlusion_potential_field", *iterator) = occlusion_square_measure /  std::hypot(x_it_occlusion_axis,y_it_occlusion_axis);
+				}// grid_map::SubmapIterator 
+			}// 物体が車両進行方向右側に存在する場合
+			/* ******************************************************************************************
+	 		* サブマップ作成
+	 		* ------------------------------------------------------------------------------------------
+			* 物体が車両前方にある場合：検出したオクルージョン領域を生み出すポリゴン頂点は物体の前方にある
+		  	* 　　　　　　　　　　　　　
+			* 前方にいると決めたY方向の幅だけサブマップを用意し，ポリゴン頂点からの距離に反比例して
+			* ポテンシャルフィールドの大きさが変わるようにする
+			* 
+			* 改善案：ROSにはtfがあり使えば多くの機能を使えばコードを短くできるかもしれない
+	 		* →GridMapは２次元なので簡単に座標変換できるためここでは使用しない
+	 		* **************************************************************************************** */
+			// 物体が車両進行方向前方に存在する場合
+			if ( -center_width < y_position_polygon_origin[i] && y_position_polygon_origin[i] < center_width){
+				// サブマップの開始点となる位置
+				Position position_submap_origin = (x_position_polygon_origin[i] , center_width/2);
+				// サブマップの開始点となるインデックス
+				Index submap_start_index;
+				// インデックスを取得する
+				map_.getIndex(position_submap_origin , submap_start_index);
+				// サブマップの大きさ（Y方向のグリッドの数）を指定する
+				buffersize_y = static_cast<int>(center_width / input_gridmap_resolution_); 
+				// サブマップの大きさを設定する
+				Index submap_buffer_size(buffersize_x , buffersize_y);
+				// サブマップイテレータでオクルージョン領域から自車までの計算のみ行う
+				for (grid_map::SubmapIterator iterator(map_, occlusion_start_index, submap_buffer_size);
+     				!iterator.isPastEnd(); ++iterator) {
+						// 現在ループにおける位置情報を取得
+						map_.getPosition(*it, pos_it);
+	 	 				/* ******************************************************************************************
+	 					* 座標変換を行う
+	 					* ------------------------------------------------------------------------------------------
+						* Occlusion領域を検出したGridMap上の座標系から
+						* ポテンシャルフィールド計算用のオクルージョン領域を生み出すポリゴン頂点をゼロ点とし
+						* GridMap座標系を１８０度回転させた座標系へ変換する
+						* 
+						* 改善案：ROSにはtfがあり使えば多くの機能を使えばコードを短くできるかもしれない
+	 					* →GridMapは２次元なので簡単に座標変換できるためここでは使用しない
+	 					* **************************************************************************************** */
+						// ポテンシャルフィールド座標系におけるX
+						x_it_occlusion_axis = x_position_polygon_origin[i] - pos_it(0);
+						// ポテンシャルフィールド座標系におけるY
+						y_it_occlusion_axis = y_position_polygon_origin[i] - pos_it(1);
+						// ポテンシャルフィールド計算
+						map_.at("occlusion_potential_field", *iterator) = occlusion_square_measure /  std::hypot(x_it_occlusion_axis,y_it_occlusion_axis);
+				}// grid_map::SubmapIterator 
+			}// 物体が車両進行方向右側に存在する場合
+
+			
+		}// オクルージョン領域の数だけループを回していく
+
+	
+
+	for (GridMapIterator it(map_); !it.isPastEnd(); ++it) {
+	　  // イテレータが指し示すセルの位置を格納する変数
+      	Position position;
+	 	 // 変数positionにOcclusionPotentialFieldにおける現在のループでの位置を格納
+      	map_.getPosition(*it, position);
+		/* ******************************************************************************************
+	 	 * 座標変換によりオクルージョン領域を生み出しているポリゴン頂点を原点とした座標系へ変換
+		 * ------------------------------------------------------------------------------------------
+		 * 改善案：ROSにはtfがあり使えば多くの機能を使えばコードを短くできるかもしれない
+		 * →GridMapは２次元なので簡単に座標変換できるためここでは使用しない
+		 * 
+		 * 改善案：オクルージョン領域を生み出すポリゴン頂点より進行方向後ろ，かつ車両側にしか
+		 * 　　　　ポテンシャルフィールドは存在しないためサブマップを使うのが良い
+		 * **************************************************************************************** */
+	 	int cell_value_it = static_cast<int>input_grid.atPosition("occlusion", position);
+	  	// 値が77の時：オクルージョン領域を生み出しているポリゴン頂点
+	  	if (cell_value_it == 77){
+			  // 現在位置を格納
+
+			  
+
+
+
+
+        
     }
-
-
 
 
 
