@@ -1,63 +1,5 @@
-#include "wayarea2grid.h"
-
-namespace object_map
-{
-	void WayareaToGrid::Run()
-	{
-		bool set_map = false;
-		ros::Rate loop_rate(
-
-		while (ros::ok())
-		{
-			if (!set_map)
-			{
-				gridmap_.add(grid_layer_name_);
-				gridmap_.setFrameId(sensor_frame_);
-				gridmap_.setGeometry(grid_map::Length(grid_length_x_, grid_length_y_),
-				                grid_resolution_,
-				                grid_map::Position(grid_position_x_, grid_position_y_));
-				set_map = true;
-			}
-
-			// timer start
-			//auto start = std::chrono::system_clock::now();
-
-			if (!area_points_.empty())
-			{
-				FillPolygonAreas(gridmap_, area_points_, grid_layer_name_, OCCUPANCY_NO_ROAD, OCCUPANCY_ROAD, grid_min_value_,
-				                 grid_max_value_, sensor_frame_, map_frame_,
-				                 tf_listener_);
-				PublishGridMap(gridmap_, publisher_grid_map_);
-				PublishOccupancyGrid(gridmap_, publisher_occupancy_, grid_layer_name_, grid_min_value_, grid_max_value_);
-			}
-
-			// timer end
-			//auto end = std::chrono::system_clock::now();
-			//auto usec = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-			//std::cout << "time: " << usec / 1000.0 << " [msec]" << std::endl;
-
-			loop_rate.sleep();
-		}
-	}
-
-}  // namespace object_map
-
-
-
-
-
-
-
-
-
-
-
-
-
 #include "occlusion.h"
-
 // Publishのための関数
-// チェック完了
 void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::string& input_layer_for_publish)
 {
 	// 配信用のレイヤーがデータに含まれている場合
@@ -88,7 +30,6 @@ void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::str
 	}
 }
 // Road Occupancy Processorからメッセージを受け取った時に呼び出される：callback関数
-// チェック完了
 void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
 {
 	// メッセージを受け取るための変数
@@ -108,9 +49,27 @@ void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_messa
 	// レイヤーとして追加する
 }
 // Detected Object メッセージを受け取った時に呼び出される：callback関数
-// チェック完了
 void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg)
 {
+	// gridmap_ に ”occupancy_road_status” レイヤーができるまで待つ
+	if(!gridmap_.exists("occupancy_road_status")
+		return;
+	if (!set_map)
+	{
+	ROS_INFO("Created Map");
+	// フレームIDセット（デフォルト：velodyne　←　WayAreaノードから引き継がれている）
+	gridmap_.setFrameId(input_gridmap_frame_);
+	// ジオメトリ情報セット（） 
+    gridmap_.setGeometry(input_gridmap_length_,
+	                     input_gridmap_resolution_,
+	                     input_gridmap_position_);
+	// デバック用					 
+	ROS_INFO("Created map with size %f x %f m (%i x %i cells).",
+   	gridmap_.getLength().x(), gridmap_.getLength().y(),
+   	gridmap_.getSize()(0), gridmap_.getSize()(1));	
+	// 次のループでは処理しない
+	set_map = true;
+	}
 	// データをGridMapに格納していく
 	ros::Time time = ros::Time::now();
 	// occlusionという名前のレイヤーで初期化
@@ -198,16 +157,12 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		slope_center_to_vertex[3] = vertex_position_x[3]/vertex_position_y[3];
 
 
-
-		/* ******************************************************************************************
-		 * 物体がグリッドマップ領域にすべて入っているか確認する
-		 * ------------------------------------------------------------------------------------------
-		 * 物体がグリッドマップの外に要る場合は無視する
-		 * 
-		 * **************************************************************************************** */
-
-
-
+/* ******************************************************************************************
+* 物体がグリッドマップ領域にすべて入っているか確認する
+* ------------------------------------------------------------------------------------------
+* 物体がグリッドマップの外に要る場合は無視する
+* 
+* **************************************************************************************** */
 
 
 		/* ******************************************************************************************
@@ -406,51 +361,21 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 	 * 
 	 * **************************************************************************************** */
 	// polygonをメッセージとして出力
-	geometry_msgs::PolygonStamped message;
+	//geometry_msgs::PolygonStamped message;
 	// 
-  	grid_map::PolygonRosConverter::toMessage(occlusion_polygon, polygon_message);
+  	//grid_map::PolygonRosConverter::toMessage(occlusion_polygon, polygon_message);
 	// 
-  	polygonPublisher_.publish(polygon_message); 
+  	//polygonPublisher_.publish(polygon_message); 
+	
 	// occlusion計算後のGridMapをパブリッシュする：引数（配信用GridMap，配信用GridMapに）
-	PublishGridMap(gridmap_, "occlusion");
+	// タイムスタンプ：GridMapのタイムスタンプを
+	gridmap_.setTimestamp(time.toNSec());
+
+	// occlusion計算後のGridMapをパブリッシュする：引数（配信用GridMap，配信用GridMapに）
+	PublishGridMap(gridmap_, output_layer_name_);
 }
 
-// Road Occupancy Processor のノードからGridMap形式のメッセージを受け取った時
-void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& gridmap_ros_in_message)
-{
-	// GridMapクラス
-	grid_map::GridMap input_grid;
-	// GridMapメッセージ→GridMapクラス　変換
-	grid_map::GridMapRosConverter::fromMessage(gridmap_ros_in_message, input_grid);
-	// GridMapのパラメータを取得
-	input_gridmap_frame_        = input_grid.getFrameId();
-	input_gridmap_length_       = input_grid.getLength();
-	input_gridmap_resolution_   = input_grid.getResolution();
-	input_gridmap_position_     = input_grid.getPosition();
 
-	gridmap_.add("Occupancy", input_grid.get(occupancy_layer_name_));
-	// Index(Eigen::Array2i)→[A,B]という形
-	gridmap::Index 
-
-
-}
-
-void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2::ConstPtr &in_ground_cloud_msg,
-                                                  const sensor_msgs::PointCloud2::ConstPtr &in_no_ground_cloud_msg)
-{
-	if(road_wayarea_original_mat_.empty())
-		return;
-
-	// timer start
-	//auto start = std::chrono::system_clock::now();
-
-	cv::Mat current_road_mat = road_wayarea_original_mat_.clone();
-	cv::Mat original_road_mat = current_road_mat.clone();
-
-	grid_map::GridMap output_gridmap;
-	output_gridmap.setFrameId(input_gridmap_frame_);
-	
-	
 	/* ******************************************************************************************
 	 * setGeometry
 	 * ------------------------------------------------------------------------------------------
@@ -465,13 +390,7 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 	 * position	the 2d position of the grid map in the grid map frame [m].
 	 * Definition at line 51 of file GridMap.cpp.
 	 * **************************************************************************************** */
-	output_gridmap.setGeometry(input_gridmap_length_,
-	                           input_gridmap_resolution_,
-	                           input_gridmap_position_);
-	ROS_INFO("Created map with size %f x %f m (%i x %i cells).\n The center of the map is located at (%f, %f) in the %s frame.",
-    output_gridmap.getLength().x(), output_gridmap.getLength().y(),
-    output_gridmap.getSize()(0), output_gridmap.getSize()(1),
-    output_gridmap.getPosition().x(), output_gridmap.getPosition().y(), output_gridmap.getFrameId().c_str());
+
 	/* ******************************************************************************************
 	 * isInside
 	 * ------------------------------------------------------------------------------------------
@@ -484,10 +403,7 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 	 * true if position is within map, false otherwise.
 	 * Definition at line 237 of file GridMap.cpp.
 	 * **************************************************************************************** */
-	//// Adding outliers (accessing cell by position).
-    //for (unsigned int i = 0; i < 500; ++i) {
-    //  Position randomPosition = Position::Random();
-    //  if (map.isInside(randomPosition))
+	
 	/* ******************************************************************************************
 	 * atPosiinittion
 	 * ------------------------------------------------------------------------------------------
@@ -505,8 +421,7 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 	 * Definition at line 174 of file GridMap.cpp.
 	 * 
 	 * **************************************************************************************** */
-    //   map.atPosition("elevation_noisy", randomPosition) = std::numeric_limits<float>::infinity();
-	// }
+  
 	/* ******************************************************************************************
 	 * add
 	 * ------------------------------------------------------------------------------------------
@@ -538,84 +453,6 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 	 * Definition at line 227 of file GridMap.cpp.
 	 * **************************************************************************************** */
 
-
-	//output_gridmap[output_layer_name_].setConstant(OCCUPANCY_NO_ROAD);
-
-	pcl::PointCloud<pcl::PointXYZI>::Ptr in_ground_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-	pcl::PointCloud<pcl::PointXYZI>::Ptr in_no_ground_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-	pcl::PointCloud<pcl::PointXYZI>::Ptr final_ground_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-	pcl::PointCloud<pcl::PointXYZI>::Ptr final_no_ground_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-
-	pcl::fromROSMsg(*in_ground_cloud_msg, *in_ground_cloud);
-	pcl::fromROSMsg(*in_no_ground_cloud_msg, *in_no_ground_cloud);
-
-	//check that both pointcloud and grid are in the same frame, otherwise transform
-	ConvertPointCloud(*in_ground_cloud, output_gridmap.getFrameId(), *final_ground_cloud);
-	ConvertPointCloud(*in_no_ground_cloud, output_gridmap.getFrameId(), *final_no_ground_cloud);
-
-	//organize pointcloud in cylindrical coords
-	PointCloudXYZIRTColor organized_points;
-	std::vector<pcl::PointIndices> radial_division_indices;
-	std::vector<pcl::PointIndices> closest_indices;
-	std::vector<PointCloudXYZIRTColor> radial_ordered_clouds;
-
-	ConvertXYZIToRTZ(final_ground_cloud,
-	                 organized_points,
-	                 radial_division_indices,
-	                 radial_ordered_clouds);
-
-	//draw lines between initial and last point of each ray
-	for (size_t i = 0; i < radial_ordered_clouds.size(); i++)//sweep through each radial division
-	{
-		geometry_msgs::Point prev_point;
-		for (size_t j = 0; j < radial_ordered_clouds[i].size(); j++)//loop through each point
-		{
-			geometry_msgs::Point current_point;
-			current_point.x = radial_ordered_clouds[i][j].point.x;
-			current_point.y = radial_ordered_clouds[i][j].point.y;
-			current_point.z = radial_ordered_clouds[i][j].point.z;
-
-			DrawLineInGridMap(output_gridmap, current_road_mat, prev_point, current_point, OCCUPANCY_ROAD_FREE);
-		}
-	}
-
-	//process obstacle points
-	for (const auto &point:final_no_ground_cloud->points)
-	{
-		geometry_msgs::Point sensor_point;
-		sensor_point.x = point.x;
-		sensor_point.y = point.y;
-		sensor_point.z = point.z;
-		SetPointInGridMap(output_gridmap, current_road_mat, sensor_point, OCCUPANCY_ROAD_OCCUPIED);
-	}
-
-#pragma omp for
-	for(int row = 0; row < current_road_mat.rows; row++)
-	{
-		for(int col = 0; col < current_road_mat.cols; col++)
-		{
-			if(original_road_mat.at<uchar>(row,col) == OCCUPANCY_NO_ROAD)
-			{
-				initcurrent_road_mat.at<uchar>(row,col) = OCCUPANCY_NO_ROAD;
-			}init
-		}init
-	}init
-	//cv::imshowinit("result", current_road_mat);
-	//cv::waitKeinity(10);
-	LoadRoadLayerFromMat(output_gridmap, current_road_mat);
-
-	// タイムスタンプ：GridMapのタイムスタンプを
-	gridmap_.setTimestamp(time.toNSec());
-
-	// occlusion計算後のGridMapをパブリッシュする：引数（配信用GridMap，配信用GridMapに）
-	PublishGridMap(output_gridmap, output_layer_name_);
-
-	// timer end
-	//auto end = std::chrono::system_clock::now();
-	//auto usec = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-	//std::cout << "time: " << usec / 1000.0 << " [msec]" << std::endl;
-
-}
 // mainプログラム：init()
 void Occlusion::InitRosIo(ros::NodeHandle &in_private_handle)
 {
@@ -658,88 +495,32 @@ void Occlusion::InitRosIo(ros::NodeHandle &in_private_handle)
 	/* ******************************************************************************************
 	 * サブスクライバー宣言
 	 * ------------------------------------------------------------------------------------------
-	 * 
-	 * 
-	 * 
+	 * １．検出され追跡されている物体情報をサブスクライブ
+	 * ２．道路領域の区分けを示したGridMap情報をサブスクライブ
 	 * **************************************************************************************** */
 	// サブスクライバー宣言：Road Occupancy Grid ノードが配信するトピックを購読
 	// トピックを受け取った場合→&Occlusion::OccupancyCallback関数を呼び出す
 	gridmap_subscriber_ = node_handle_.subscribe(occupancy_topic_str, 1, &Occlusion::OccupancyCallback, this);
-	ROS_INFO("[%s] Subscribing to... %s",occlusion, occupancy_topic_str.c_str());
+	ROS_INFO("[%s] Subscribing to... %s","occlusion", occupancy_topic_str.c_str());
 	// サブスクライバー宣言：トピック "DetectedObjects" を購読
 	// トピックを受け取った場合→&Occlusion::OccupancyCallback関数を呼び出す
 	objects_subscriber_ = node_handle_.subscribe("/detected_objects", 1, &Occlusion::ObjectCallback, this);
-	ROS_INFO("[%s] Subscribing to... /detected_objects",occlusion);
+	ROS_INFO("[%s] Subscribing to... /detected_objects","occlusion");
 	/* ******************************************************************************************
 	 * パブリッシャー宣言
 	 * ------------------------------------------------------------------------------------------
-	 * 
-	 * 
-	 * 
+	 * OccupancyGrid 形式
+	 * GridMap 形式
 	 * **************************************************************************************** */
 	// パブリッシャー宣言：Occlusion ノードとして配信するトピックを登録
-	publisher_grid_map_= node_handle_.advertise<grid_map_msgs::GridMap>("gridmap_occlusion", 1);
-	ROS_INFO("[%std::sin(-1.0 * y) * (position.x() - pos_x) +
-                            		std::cos(-1.0 * y) * (position.y() - pos_y) +
-                            		pos_y;
-							s] Publishing GridMap in gridmap_road_status",occlusion);
+	publisher_grid_map_= node_handle_.advertise<grid_map_msgs::GridMap>("occlusion", 1);
+	ROS_INFO("[%s] Publishing GridMap in gridmap_road_status","occlusion");
 	// パブリッシャー宣言：Occlusion ノードとして配信するトピックを登録
 	publisher_occupancy_grid_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("occupancy_occlusion", 1);
-	ROS_INFO("[%s] Publishing Occupancy grid in occupancy_road_status",occlusion);
+	ROS_INFO("[%s] Publishing Occupancy grid in occupancy_road_status","occlusion");
 	// デバック用
-	ROS_INFO("Created Map");
-	// フレームIDセット（デフォルト：velodyne　←　WayAreaノードから引き継がれている）
-	gridmap_.setFrameId(input_gridmap_frame_);
-	// ジオメトリ情報セット（） 
-    gridmap_.setGeometry(input_gridmap_length_,
-	                     input_gridmap_resolution_,
-	                     input_gridmap_position_);
-	// デバック用					 
-    ROS_INFO("Created map with size %f x %f m (%i x %i cells).",
-    gridmap_.getLength().x(), gridmap_.getLength().y(),
-    gridmap_.getSize()(0), gridmap_.getSize()(1));
-	// Occulusion用のレイヤーを用意
-	gridmap_.add(output_layer_name_);
-	// Occulusion用のレイヤーの数値を初期化する（すべての領域はオクルージョン領域ではないとする）
-	for (GridMapIterator it(gridmap_); !it.isPastEnd(); ++it) {
-    Position position;
-    map_.getPosition(*it, position);
-    map_.at(output_layer_name_, *it) = 0.0;
-  	}
-  
-
 }
 
-tf::StampedTransform
-RosRoadOccupancyProcessorApp::FindTransform(const std::string &in_target_frame, const std::string &in_source_frame)
-{
-	tf::StampedTransform transform;
-
-	try
-	{
-		transform_listener_->lookupTransform(in_target_frame, in_source_frame, ros::Time(0), transform);
-	}
-	catch (tf::TransformException ex)
-	{
-		ROS_ERROR("%s", ex.what());
-	}
-
-	return transform;
-}
-
-geometry_msgs::Point
-RosRoadOccupancyProcessorApp::TransformPoint(const geometry_msgs::Point &in_point, const tf::Transform &in_transform)
-{
-	tf::Point tf_point;
-	tf::pointMsgToTF(in_point, tf_近年，point);
-
-	tf_point = in_transform * tf_point;
-
-	geometry_msgs::Point geometry_point;
-	tf::pointTFToMsg(tf_point, geometry_point);
-
-	return geometry_point;
-}
 // ノード本体
 void Occlusion::run()
 {
@@ -750,47 +531,13 @@ void Occlusion::run()
 	// 
 	transform_listener_ = &transform_listener;
 	// 
-	InitializeRosIo(private_node_handle);
+	InitRosIo(private_node_handle);
 	// 
-	ROS_INFO("[%s] Ready. Waiting for data...",occlusion);
+	ROS_INFO("[%s] Ready. Waiting for data...","occlusion");
 	// 
 	ros::spin();
 	// 
 	ROS_INFO("[%s] END",occlusion);
-}
-
-RosRoadOccupancyProcessorApp::RosRoadOccupancyProcessorApp()
-{
-	radial_dividers_num_ = ceil(360 / radial_divider_angle_);
-}output_gridmap.setGeometry(input_gridmap_length_,
-	                           input_gridmap_resolution_,
-	                           input_gridmap_position_);
-// 検出された物体情報を取り出す
-Occlusion::GeneratePolygon()
-{
-	// オクルージョン領域を示す"Polygon"を定義する
-    grid_map::Polygon polygon;
-	// Fram                            		std::cos(-1.0 * y) * (position.y() - pos_y) +eIdをセットする
-    polygon                            		pos_y;.setFrameId(map_.getFrameId());
-	// オク							ルージョン領域の形成する頂点追加
-    polygon.addVertex(Position( 0.480,  0.000));
-    polygon.addVertex(Position( 0.164,  0.155));
-    polygon.addVertex(Position( 0.116,  0.500));
-    polygon.addVertex(Position(-0.133,  0.250));
-    polygon.addVertex(Position(-0.480,  0.399));
-    polygon.addVertex(Position(-0.316,  0.000));
-    polygon.addVertex(Position(-0.480, -0.399));
-    polygon.addVertex(Position(-0.133, -0.250));
-    polygon.addVertex(Position( 0.116, -0.500));
-    polygon.addVertex(Position( 0.164, -0.155));
-    polygon.addVertex(Position( 0.480,  0.000));
-
-	for (grid_map::PolygonIterator iterator(map_, polygon); !iterator.isPastEnd(); ++iterator) 
-	{
-    	map_.at("type", *iterator) = 1.0;
-    }
-
-
 }
 //------------------------------------------------------------------------------------------------------------
 /*

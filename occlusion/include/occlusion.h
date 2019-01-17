@@ -104,7 +104,7 @@ class Occlusion
 	// Occlusion情報を格納するGidMapレイヤーの名前
 	std::string                         output_layer_name_;
 	// カメラ高さ：オクルージョン領域を作るか作らないか
-	float 								camera_height_;
+	float								camera_height_;
 	// Grid Map フレーム
 	std::string                         input_gridmap_frame_;
 	// Grid Map 解像度
@@ -124,8 +124,7 @@ class Occlusion
 	int                                 OCCUPANCY_ROAD_FREE     = 75;
 	int                                 OCCUPANCY_ROAD_OCCUPIED = 0;
 	int                                 OCCUPANCY_NO_ROAD       = 255;
-	bool                                set_occupancy_gridmap   = false;
-	bool                                set_occlusion_gridmap   = false;
+	bool                                set_map                 = false;
 	/*******************************************************************************************
  	* 現在のインスタンスに含まれているGridMapオブジェクトを公開
  	* -----------------------------------------------------------------------------------------
@@ -139,7 +138,7 @@ class Occlusion
 	 * GridMapメッセージを受け取り、その形状、占有ビットマップを抽出します
 	 * @param in_message 受信したメッセージ
 	 */
-	void OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
+	void OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message);
 	/*!
 	 * コールバック関数
 	 * DetectedObjectArrayメッセージを受け取り、その位置、姿勢、大きさを抽出する

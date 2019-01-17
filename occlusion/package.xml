@@ -2,7 +2,7 @@
 <package>
   <name>occlusion</name>
   <version>1.9.1</version>
-  <description>occlusion area calc</description>
+  <description>occlusion area calcration</description>
   <maintainer email="s170035u@st.go.tuat.ac.jp">takashi nohara</maintainer>
   <license>BSD</license>
   <buildtool_depend>catkin</buildtool_depend>
