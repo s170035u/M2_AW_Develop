@@ -8,8 +8,6 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "occlusion");
   // Occlusion クラスをインスタンス化
   Occlusion occlusion;
-  // occlusionクラス：初期化メソッド
-  occlusion.init();
   // occlusionクラス：オクルージョン計算メソッド
   occlusion.run();
   // 終了

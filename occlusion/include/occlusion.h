@@ -23,35 +23,6 @@
 #include <jsk_recognition_msgs/BoundingBox.h>
 // BoundingBoxが検出された分だけ入っている
 #include <jsk_recognition_msgs/BoundingBoxArray.h>
-// これは自由空間での速度をその直線部分と角度部分に分けて表します。
-// 参照座標フレームとタイムスタンプのねじれ
-#include <geometry_msgs/TwistStamped.h>
-// pointcloud と poinycloud2 の橋渡しを行う。
-#include <sensor_msgs/point_cloud_conversion.h>
-// ポイントクラウド
-#include <sensor_msgs/PointCloud.h>
-// ポイントクラウド２
-#include <sensor_msgs/PointCloud2.h>
-// PCLデータ型およびROSメッセージ型からの変換を提供します
-#include <pcl_conversions/pcl_conversions.h>
-// ポイントクラウド２
-#include <pcl/PCLPointCloud2.h>
-// ポイントクラウド変換
-#include <pcl_ros/transforms.h>
-// ポイントクラウド
-#include <pcl_ros/point_cloud.h>
-// ポイントクラウドの型
-#include <pcl/point_types.h>
-// フィルタが満たす必要のある条件に基づいて、メッセージを取り込み、
-// 後でそれらのメッセージを出力することができるメッセージフィルタのセット。
-// Subscriberフィルタは、他のフィルタのソースを提供するROSサブスクリプションの単なるラッパーです。 
-// 購読者フィルタは、他のフィルタの出力に接続することはできません。代わりに、入力としてROSトピックを使用します。
-#include <message_filters/subscriber.h>
-// TimeSynchronizerフィルタは、受信チャネルをそのヘッダに含まれているタイムスタンプで同期させ、同じ数のチャネルを
-//受け取る単一のコールバックの形式でそれらを出力します。 C ++の実装は、最大9つのチャネルを同期できます。
-#include <message_filters/synchronizer.h>
-// タイムスタンプのおおよそ一致を確認
-#include <message_filters/sync_policies/approximate_time.h>
 // グリッドマップライブラリ用のROSインタフェース。複数のデータレイヤを持つ2次元グリッドマップを管理します。
 #include <grid_map_ros/grid_map_ros.hpp>
 // バッグファイルからグリッドマップを読み込んで公開
@@ -78,9 +49,44 @@
 #include <visualization_msgs/MarkerArray.h>
 // 最初と最後の点が接続されていると想定される多角形の指定
 #include <geometry_msgs/PolygonStamped.h>
+// これは自由空間での速度をその直線部分と角度部分に分けて表します。
+// 参照座標フレームとタイムスタンプのねじれ
+//#include <geometry_msgs/TwistStamped.h>
+// pointcloud と poinycloud2 の橋渡しを行う。
+//#include <sensor_msgs/point_cloud_conversion.h>
+// ポイントクラウド
+//#include <sensor_msgs/PointCloud.h>
+// ポイントクラウド２
+//#include <sensor_msgs/PointCloud2.h>
+// PCLデータ型およびROSメッセージ型からの変換を提供します
+//#include <pcl_conversions/pcl_conversions.h>
+// ポイントクラウド２
+//#include <pcl/PCLPointCloud2.h>
+// ポイントクラウド変換
+//#include <pcl_ros/transforms.h>
+// ポイントクラウド
+//#include <pcl_ros/point_cloud.h>
+// ポイントクラウドの型
+//#include <pcl/point_types.h>
+// フィルタが満たす必要のある条件に基づいて、メッセージを取り込み、
+// 後でそれらのメッセージを出力することができるメッセージフィルタのセット。
+// Subscriberフィルタは、他のフィルタのソースを提供するROSサブスクリプションの単なるラッパーです。 
+// 購読者フィルタは、他のフィルタの出力に接続することはできません。代わりに、入力としてROSトピックを使用します。
+//#include <message_filters/subscriber.h>
+// TimeSynchronizerフィルタは、受信チャネルをそのヘッダに含まれているタイムスタンプで同期させ、同じ数のチャネルを
+//受け取る単一のコールバックの形式でそれらを出力します。 C ++の実装は、最大9つのチャネルを同期できます。
+//#include <message_filters/synchronizer.h>
+// タイムスタンプのおおよそ一致を確認
+//#include <message_filters/sync_policies/approximate_time.h>
 // これはROS ImageメッセージとOpenCVイメージを変換するCvBridgeを含みます。
-#include <cv_bridge/cv_bridge.h>
+//#include <cv_bridge/cv_bridge.h>
 #endif
+/*******************************************************************************************
+ * クラス宣言：main関数内でインスタンス化
+ * -----------------------------------------------------------------------------------------
+ * 
+ * 
+ ********************************************************************************************/
 class Occlusion
 { 
 	// ノードハンドラ
@@ -97,6 +103,8 @@ class Occlusion
 	std::string                         occupancy_layer_name_;
 	// Occlusion情報を格納するGidMapレイヤーの名前
 	std::string                         output_layer_name_;
+	// カメラ高さ：オクルージョン領域を作るか作らないか
+	float 								camera_height_;
 	// Grid Map フレーム
 	std::string                         input_gridmap_frame_;
 	// Grid Map 解像度
@@ -118,63 +126,39 @@ class Occlusion
 	int                                 OCCUPANCY_NO_ROAD       = 255;
 	bool                                set_occupancy_gridmap   = false;
 	bool                                set_occlusion_gridmap   = false;
-
-	struct OcclusionGridMap 
-	{
-		tf::Vector2d Position;
-		tf::Vector2d Directions;
-	}
-	/*!
-	 * 現在のインスタンスに含まれているGridMapオブジェクトを公開します。
-	 * @param[in] 公開するGridMap
-	 * @param[in] OccupancyGridとして公開するレイヤーの名前
-	 */
-	// チェック済
+	/*******************************************************************************************
+ 	* 現在のインスタンスに含まれているGridMapオブジェクトを公開
+ 	* -----------------------------------------------------------------------------------------
+ 	* @param[in] 公開するGridMap
+	* @param[in] OccupancyGridとして公開するレイヤーの名前
+ 	* 
+ 	********************************************************************************************/
 	void PublishGridMap(grid_map::GridMap &input_grid_map, const std::string& input_layer_for_publish)
 	/*!
 	 * コールバック関数
 	 * GridMapメッセージを受け取り、その形状、占有ビットマップを抽出します
 	 * @param in_message 受信したメッセージ
 	 */
-	void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
+	void OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
 	/*!
 	 * コールバック関数
 	 * DetectedObjectArrayメッセージを受け取り、その位置、姿勢、大きさを抽出する
 	 * @param in_message 受信したメッセージ
 	 */
-	void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg);
+	void ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg);
 	/*!
-	// Set the frame id of the grid map
-	 * 
-	// Set the frame id of the grid mapし、購読者と発行者を初期化します。
-	 * 
-	// Set the frame id of the grid mapメータを取得するためのRosプライベートハンドル。
+	 * ROS特有のプログラム
+	 * @ in_private_handle ノードハンドラを引数にする
 	 */
-	// Set the frame id of the grid map
-	void InitializeRosIo(ros::NodeHandle& in_private_handle);
-	/*!
-	 * TFツリーのin_source_frameとin_target_frameの間の変換を検索する
-	 * @param in_target_frameターゲットフレーム名
-	 * @param in_source_frameソースフレーム名
-	 * @return in_source_frameからin_target_frameに変換する変換がある場合は、それを返します。
-	 */
-	tf::StampedTransform FindTransform(const std::string& in_target_frame, const std::string& in_source_frame);
-	/*!
-	 * 指定された変換を使ってPointを変換する
-	 * @param in_point 変換するポイント
-	 * @param in_transform 変換データ
-	 * @return 返還後の点
-	 */
-	geometry_msgs::Point TransformPoint(const geometry_msgs::Point &in_point, const tf::Transform &in_transform);
+	void InitRosIo(ros::NodeHandle& in_private_handle);
 
 public:
-	// 
-	void init();
-	// 
+	// run 関数を公開
 	void run();
-	// 
+	// オクルージョンクラスを公開
 	Occlusion();
 };
+#endif
 //------------------------------------------------------------------------------------------------------------
 /*!
 * @param[in] in_cloud Input Point Cloud to be organized in radial segments

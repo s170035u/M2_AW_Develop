@@ -1,13 +1,20 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 2.8.12)
 project(occlusion)
+
 ###########################################
-## ROS上でリンクしたいライブラリのリスト ##
+## ROS上でリンクしたいライブラリのリスト    ##
 ###########################################
 find_package(catkin REQUIRED COMPONENTS
+  autoware_build_flags
   roscpp
   std_msgs
   tf
   pcl_ros
+  sensor_msgs
+  nav_msgs
+  grid_map_ros
+  grid_map_cv
+  grid_map_msgs
   pcl_conversions
   waypoint_follower
   autoware_msgs 
@@ -18,10 +25,28 @@ find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 find_package(OpenMP)
 
+#######################################################
+## ROS上で依存しているパッケージのリストを追加すると     ##
+## パッケージが変更された時再ビルドされる               ##
+#######################################################
+catkin_package(CATKIN_DEPENDS 
+  roscpp 
+  std_msgs 
+  tf 
+  autoware_msgs 
+  vector_map 
+  sensor_msgs 
+  nav_msgs
+  grid_map_ros
+  grid_map_cv
+  grid_map_msgs
+)
+
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall ${CMAKE_CXX_FLAGS}")
 
 ####################################################################################
-## CMake関数add_library()は、ビルドする際のライブラリを指定するために使います。   ##
-## デフォルトで、catkinは共有ライブラリをビルドします。                           ##
+## CMake関数add_library()は、ビルドする際のライブラリを指定するために使います。        ##
+## デフォルトで、catkinは共有ライブラリをビルドします。                               ##
 ####################################################################################
 
 # Occlusion Library
@@ -29,6 +54,7 @@ add_library(occlusion_lib SHARED
     include/occlusion.h
     src/occlusion.cpp
 )
+
 ####################################################################################
 ## ターゲットを指定する前に、ターゲットのためのリソース、特にヘッダファイルおよび ##
 ## ライブラリをどこで見つけることができるのかを指定する必要があります。           ##
@@ -36,13 +62,17 @@ add_library(occlusion_lib SHARED
 ##（一般的にC/C++の)コードをビルドするためのヘッダファイルがどこで見つけられるか  ##
 ####################################################################################
 
-target_include_directories(road_occupancy_processor_lib PRIVATE
+target_include_directories(occlusion_lib PRIVATE
     ${OpenCV_INCLUDE_DIR}
     ${catkin_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     include
 )
+add_dependencies(occlusion_lib
+    ${catkin_EXPORTED_TARGETS}
+)
+
 ####################################################################################
 ## 実行可能なターゲットがどのライブラリにリンクするかを指定する                   ##
 ## これは一般にadd_executable()の呼びだしの後に実行されます。                     ##
@@ -50,45 +80,33 @@ target_include_directories(road_occupancy_processor_lib PRIVATE
 ## 追加してください。                                                             ## 
 ####################################################################################
 
-target_include_directories(road_occupancy_processor_lib PRIVATE
-    ${OpenCV_INCLUDE_DIR}
-    ${catkin_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-    ${PCL_INCLUDE_DIRS}
-    include
-)
-###############################################################################################
-## 実行ファイルがメッセージあるいはサービスを使い、かつメッセージやサービスをビルドする      ##
-## パッケージがあるなら、自動的に生成されるメッセージターゲットへの明示的な依存性を作成し、  ##
-## 正しい順序でビルドされるようにする必要があります。                                        ##
-###############################################################################################
-
-add_dependencies(occulusion ${catkin_EXPORTED_TARGETS})
-
-#######################################################
-## ROS上で依存しているパッケージのリストを追加すると ##
-## パッケージが変更された時、再ビルドされる          ##
-#######################################################
-catkin_package(
-  CATKIN_DEPENDS roscpp std_msgs tf waypoint_follower autoware_msgs vector_map
-)
-
 ###########
 ## Build ##
 ###########
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall ${CMAKE_CXX_FLAGS}")
-
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-)
 ##################################################
 ## ノードを追加する処理 ノード実行ファイルを定義##
 ##################################################
-add_executable(occlusion nodes/occlusion.cpp)
-target_link_libraries(occlusion ${catkin_LIBRARIES})
+add_executable(occlusion
+    src/occlusion_node.cpp
+)
+target_include_directories(occlusion PRIVATE
+    ${OpenCV_INCLUDE_DIR}
+    ${catkin_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
+    ${PCL_INCLUDE_DIRS}
+    include)
 
+target_link_libraries(occlusion
+    ${catkin_LIBRARIES}
+    occlusion_lib
+    )
 
-####################################################################
-## ターゲットをシステムにインストールして、ターゲットを他で使う   ##
-## 
+install(TARGETS occlusion
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+install(DIRECTORY launch/
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+        PATTERN ".svn" EXCLUDE)

@@ -2,62 +2,10 @@
 
 namespace object_map
 {
-
-	WayareaToGrid::WayareaToGrid() :
-			private_node_handle_("~")
-	{
-		InitializeRosIo();
-		LoadRoadAreasFromVectorMap(private_node_handle_, area_points_);
-	}
-
-
-	void WayareaToGrid::InitializeRosIo()
-	{
-		// private_node_handleはプライベートパラメータを呼び出すためのノードハンドル
-		// .launch で引数とった，もしくはdefaultの値が用いられているので使用
-		private_node_handle_.param<std::string>("sensor_frame", sensor_frame_, "velodyne");
-		private_node_handle_.param<std::string>("map_frame", map_frame_, "map");
-		private_node_handle_.param<double>("grid_resolution", grid_resolution_, 0.2);
-		private_node_handle_.param<double>("grid_length_x", grid_length_x_, 80);
-		private_node_handle_.param<double>("grid_length_y", grid_length_y_, 30);
-		private_node_handle_.param<double>("grid_position_x", grid_position_x_, 20);
-		private_node_handle_.param<double>("grid_position_x", grid_position_y_, 0);
-		
-		// オクルージョン領域を"occlusion_area"という名前のトピックにgrid_map_msgs::GridMap形式のノードを送ることを伝える
-		publisher_grid_map_ = node_handle_.advertise<grid_map_msgs::GridMap>("occlusion_area", 1, true);
-		// オクルージョンではない領域を"openning_area"という名前のトピックにros nav_msgs :: OccupancyGrid形式のノードを送ることを伝える
-		publisher_occupancy_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("openning_area", 1, true);
-		
-		obj_subscriber_ = nh_.subscribe("/detected_objects", 1,&PotentialField::obj_callback, this);
-	}
-
 	void WayareaToGrid::Run()
 	{
 		bool set_map = false;
 		ros::Rate loop_rate(
-
-// ==========================================================================
-		// 見つけたすべての障害物すべてに対する処理
-		for (int i(0); i < (int)obj_msg->objects.size(); ++i) {
-
-		}
-		
-		// 見つけた物体の位置 X [m]
-		double pos_x = obj_msg->objects.at(i).pose.position.x;
-		// 見つけた物体の位置 Y [m]
-		double pos_y = obj_msg->objects.at(i).pose.position.y;
-		// 見つけた物体のx方向長さ L_x [m]
-        double len_x = obj_msg->objects.at(i).dimensions.x / 2.0;
-        // 見つけた物体のy方向長さ L_y [m]
-		double len_y = obj_msg->objects.at(i).dimensions.y / 2.0;
-		// 
-      double r, p, y;
-      tf::Quaternion quat(obj_msg->objects.at(i).pose.orientation.x,
-                          obj_msg->objects.at(i).pose.orientation.y,
-                          obj_msg->objects.at(i).pose.orientation.z,
-                          obj_msg->objects.at(i).pose.orientation.w);
-      tf::Matrix3x3(quat).getRPY(r, p, y);
- // ==========================================================================
 
 		while (ros::ok())
 		{
@@ -669,10 +617,10 @@ void RosRoadOccupancyProcessorApp::PointsCallback(const sensor_msgs::PointCloud2
 
 }
 // mainプログラム：init()
-void Occlusion::init(ros::NodeHandle &in_private_handle)
+void Occlusion::InitRosIo(ros::NodeHandle &in_private_handle)
 {
-	// ！！！要チェック！！！
-	std::string occupancy_topic_str
+	// road occupancy processor のトピック名
+	std::string occupancy_topic_str;
 	/* ******************************************************************************************
 	 * パラメータ取得
 	 * ------------------------------------------------------------------------------------------
@@ -683,30 +631,30 @@ void Occlusion::init(ros::NodeHandle &in_private_handle)
 	// パラメータ取得：<arg name="occupancy_topic_src" defーault="gridmap_road_status" />
 	// <!-- Road Occupancy Processor が配信しているトピック名 -->
 	in_private_handle.param<std::string>("occupancy_topic_src", occupancy_topic_str, "gridmap_road_status");
-	ROS_INFO("[%s] occupancy_topic_src: %s",occlusion, occupancy_topic_str.c_str());
+	ROS_INFO("[%s] occupancy_topic_src: %s","occlusion", occupancy_topic_str.c_str());
 	// パラメータ取得：<arg name="occupancy_layer_name" default="road_status" />
 	// <!-- Road Occupancy Processor の GridMap クラスメッセージにおけるレイヤー名 -->
 	in_private_handle.param<std::string>("occupancy_layer_name", occupancy_layer_name_, "road_status");
-	ROS_INFO("[%s] occupancy_layer_name: %s",occlusion, occupancy_layer_name_.c_str());
+	ROS_INFO("[%s] occupancy_layer_name: %s","occlusion", occupancy_layer_name_.c_str());
     // パラメータ取得；<arg name="output_layer_name" default="road_occlusion" />
 	// <!-- Occlusion が配信する GridMapクラスメッセージにおけるレイヤー名 -->
-	in_private_handle.param<std::string>("output_layer_name", output_layer_name_, "road_occlusion");
-	ROS_INFO("[%s] output_layer_name: %s",occlusion, output_layer_name_.c_str());
-	// パラメータ取得；<arg name="output_layer_name" default="road_occlusion" />
-	// <!-- Occlusion が配信する GridMapクラスメッセージにおけるレイヤー名 -->
-	in_private_handle.param<std::string>("output_layer_name", output_layer_name_, "road_occlusion");
+	in_private_handle.param<std::string>("output_layer_name", output_layer_name_, "occlusion");
+	ROS_INFO("[%s] output_layer_name: %s","occlusion", output_layer_name_.c_str());
 	// パラメータ取得：	<arg name="road_unknown_value" default="128" />   
 	in_private_handle.param<int>("road_unknown_value", OCCUPANCY_ROAD_UNKNOWN, 128);
-	ROS_INFO("[%s] road_unknown_value: %d",occlusion, OCCUPANCY_ROAD_UNKNOWN);
+	ROS_INFO("[%s] road_unknown_value: %d","occlusion", OCCUPANCY_ROAD_UNKNOWN);
 	// パラメータ取得：<arg name="road_free_value" default="75" /> 
 	in_private_handle.param<int>("road_free_value", OCCUPANCY_ROAD_FREE, 75);
-	ROS_INFO("[%s] road_free_value: %d",occlusion, OCCUPANCY_ROAD_FREE);
+	ROS_INFO("[%s] road_free_value: %d","occlusion", OCCUPANCY_ROAD_FREE);
 	// パラメータ取得：<arg name="road_occupied_value" default="0" />      
 	in_private_handle.param<int>("road_occupied_value", OCCUPANCY_ROAD_OCCUPIED, 0);
-	ROS_INFO("[%s] road_occupied_value: %d",occlusion, OCCUPANCY_ROAD_OCCUPIED);
+	ROS_INFO("[%s] road_occupied_value: %d","occlusion", OCCUPANCY_ROAD_OCCUPIED);
 	// パラメータ取得：<arg name="no_road_value" default="255" />  
 	in_private_handle.param<int>("no_road_value", OCCUPANCY_NO_ROAD, 255);
-	ROS_INFO("[%s] no_road_value: %d",occlusion, OCCUPANCY_NO_ROAD);
+	ROS_INFO("[%s] no_road_value: %d","occlusion", OCCUPANCY_NO_ROAD);
+	// パラメータ取得：<arg name="camera_height" default="1.5" />	
+	in_private_handle.param<float>("camera_height", camera_height_, 1.5);
+	ROS_INFO("[%s] no_road_value: %d","occlusion", camera_height_);
 	/* ******************************************************************************************
 	 * サブスクライバー宣言
 	 * ------------------------------------------------------------------------------------------

@@ -1,23 +1,10 @@
-<!-- roslaunchファイルとは -->
-<!-- 
-roslaunchは、設定するパラメータと起動するノードを指定した1つ以上のXML設定ファイル
-（パラメータサーバーの.launch拡張子付き）、および実行する必要があるマシンを取り込みます。
--->
-
-<!-- 役割 -->
-<!--
-roslaunchは、立ち上げるべきnodeと、セットされるべきパラメータと、ROS nodesの集まりを立ち上げ
-るのに必要な特徴などについて書かれているXMLファイルを使用します。
--->
 <launch>
-	<!-- .launch コマンド実行の際に指定できる引数：デフォルトの値を基本的に使用する -->
-
 	<!-- Road Occupancy Processor が配信しているトピック名 -->
 	<arg name="occupancy_topic_src" default="gridmap_road_status" /> <!-- GridMap Road Occupancy Processor source topic -->
 	<!-- Road Occupancy Processor の GridMap クラスメッセージにおけるレイヤー名 -->
 	<arg name="occupancy_layer_name" default="road_status" /> <!-- Name of the layer in the GridMap containing road status-->
 	<!-- Occlusion が配信する GridMapクラスメッセージにおけるレイヤー名 -->
-	<arg name="output_layer_name" default="road_occlusion" /> <!-- NAme of the output layer in the GridMap-->
+	<arg name="output_layer_name" default="occlusion" /> <!-- NAme of the output layer in the GridMap-->
 	<!-- Value to fill in the occupancy grid when a cell is UNKNOWN -->
 	<arg name="road_unknown_value" default="128" />     
 	<!-- Value to fill in the occupancy grid when a cell is FREE-->
@@ -25,28 +12,19 @@ roslaunchは、立ち上げるべきnodeと、セットされるべきパラメ�
 	<!-- Value to fill in the occupancy grid when a cell is OCCUPIED-->
 	<arg name="road_occupied_value" default="0" />      
 	<!-- Value to fill in the occupancy grid when a cell is NO ROAD-->
-	<arg name="no_road_value" default="255" />   
-	<arg name="camera_height" default="1.2" />	
-	<arg name="map_resolution" default="0.25" />
-    <arg name="map_x_size" default="40.0" />
-    <arg name="map_y_size" default="25.0" />
-    <arg name="map_x_offset" default="10.0" />
-
+	<arg name="no_road_value" default="255" />  
+	<!-- 地面からカメラの取り付け位置まで -->
+	<arg name="camera_height" default="1.5" />	
+	
 	<!-- occlusionパッケージ　：　実行ファイル名occlusion　：　ノード名occlusion　：　 -->
 	<node name="occlusion" pkg="occlusion" type="occlusion" output="screen">
-		<!-- パラメータoccupancy_topic_srcに引数occupancy_topic_srcをセット -->
 		<param name="occupancy_topic_src" value="$(arg occupancy_topic_src)" />
-		<!-- パラメータoccupancy_layer_nameに引数occupancy_layer_nameをセット -->
 		<param name="occupancy_layer_name" value="$(arg occupancy_layer_name)" />
-
 		<param name="output_layer_name" value="$(arg output_layer_name)" />
-
 		<param name="road_unknown_value" value="$(arg road_unknown_value)" />
 		<param name="road_free_value" value="$(arg road_free_value)" />
 		<param name="road_occupied_value" value="$(arg road_occupied_value)" />
 		<param name="no_road_value" value="$(arg no_road_value)" />
 		<param name="camera_height" value="$(arg camera_height)" />
-
 	</node>
-
 </launch>
