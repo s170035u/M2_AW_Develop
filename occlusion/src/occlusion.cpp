@@ -1,6 +1,10 @@
 #include "occlusion.h"
 // Publishのための関数
-void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::string& input_layer_for_publish)
+Occlusion::Occlusion()
+{
+	ROS_INFO(" Constructer is up. ");	
+}
+void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::string &input_layer_for_publish)
 {
 	// 配信用のレイヤーがデータに含まれている場合
 	if (input_grid_map.exists(input_layer_for_publish))
@@ -29,6 +33,11 @@ void Occlusion::PublishGridMap(grid_map::GridMap &input_grid_map, const std::str
 		ROS_INFO(" Empty GridMap. It might still be loading or it does not contain valid data.");
 	}
 }
+// 絶対値比較のための関数
+static bool abs_compare(double a, double b)
+{
+    return (std::abs(a) < std::abs(b));
+}
 // Road Occupancy Processorからメッセージを受け取った時に呼び出される：callback関数
 void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_message)
 {
@@ -52,8 +61,9 @@ void Occlusion::OccupancyCallback(const grid_map_msgs::GridMap& input_grid_messa
 void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_msg)
 {
 	// gridmap_ に ”occupancy_road_status” レイヤーができるまで待つ
-	if(!gridmap_.exists("occupancy_road_status")
+	if(!gridmap_.exists("occupancy_road_status")){
 		return;
+	}
 	if (!set_map)
 	{
 	ROS_INFO("Created Map");
@@ -88,7 +98,7 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 	// 物体のZ方向長さを求める
 	double len_z = obj_msg->objects.at(i).dimensions.z;
 	// 物体がカメラより下の位置にある場合オクルージョン領域は生まれないとする
-	if (pos_z + (len_z/2) < camera_height)
+	if (pos_z + (len_z/2) < camera_height_)
 	{
 		continue;
 	}
@@ -97,7 +107,7 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
     // 物体の位置Yを求める  
 	double pos_y = obj_msg->objects.at(i).pose.position.y;
 	// 検出物体をEigen::Vector2d形式で利用するGridMapクラス"Position"に代入する
-	Position object_position = (pos_x,pos_y);
+	grid_map::Position object_position(pos_x, pos_y);
 	// "Position"の場所にある"occupancy_road_status"レイヤーの値を取得
 	float gridcell_value = gridmap_.atPosition("occupancy_road_status",object_position);
 	// std::out_of_range：指定した名前のレイヤーがない場合の例外処理がないと厳しいかも
@@ -132,7 +142,7 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		// 物体のXY平面におけるY：頂点情報を配列にする
 		std::vector<double> vertex_position_y(4);
 		// 物体の頂点と原点を通る直線の傾きを配列にする
-		std::vector<double> slope_center_to_verte(4);
+		std::vector<double> slope_center_to_vertex(4);
 		// 傾きが最大となるイテレータオブジェクトを定義する
 		std::vector<double>::iterator max_slope_ite;
 		// yaw方向の回転を使って物体の２次元上での位置(進行方向：左：上の位置)を取得する
@@ -193,11 +203,11 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		// グリッドマップの縦横比を求める
 		double aspect_ratio_gridmap = gridmap_.getLength().x()/gridmap_.getLength().y();
 		// 物体が車両の右側にいる場合：傾きが負になっているはず
-		if(-center_width > pos_y) {
+		if(-center_width_ > pos_y) {
 			// ポリゴンのフレームIDをセット
 			occlusion_polygon.setFrameId(gridmap_.getFrameId());
 			// ポリゴン頂点を追加する（オクルージョン領域を作る頂点）
-			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x , max_vertex_position_y ));
 			// 原点と物体の角を結ぶ直線がたどり着くGridMap境界を求めてポリゴンに追加する
 			if (-max_slope < aspect_ratio_gridmap) {
 			/* ******************************************************************************************
@@ -206,21 +216,21 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			 * オクルージョン直線の傾き < グリッドマップの縦横比　→　ポリゴン頂点が３つの三角形
 			 * オクルージョン直線の傾き > グリッドマップの縦横比　→　ポリゴン頂点が４つの四角形
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (-gridmap_.getLength().y() / 2 * max_slope) , (-gridmap_.getLength().y() / 2) ));
+			occlusion_polygon.addVertex(grid_map::Position( (-gridmap_.getLength().y() / 2 * max_slope) , (-gridmap_.getLength().y() / 2) ));
 			/* ******************************************************************************************
 			 * オクルージョン領域を作り出す頂点から引いたY軸に平行な直線とグリッドマップ境界が交わる点を求めていく
 			 * ------------------------------------------------------------------------------------------
 			 * Xの値：オクルージョン領域を作り出す頂点と同じ
 			 * Yの値：ー（グリッドマップのY軸の長さ÷２）と同じ
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (max_vertex_position_x) , (-gridmap_.getLength().y() /2 ) ));
+			occlusion_polygon.addVertex(grid_map::Position( (max_vertex_position_x) , (-gridmap_.getLength().y() /2 ) ));
 			/* ******************************************************************************************
 			 * 最後にオクルージョン領域を作り出す頂点をポリゴンに追加すればポリゴンが完成
 			 * ------------------------------------------------------------------------------------------
 			 * ３つの頂点を持つポリゴンとなる
 			 * 最低４つのaddVertex関数が必要
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x , max_vertex_position_y ));
 			} else {
 			/* ******************************************************************************************
 			 * 原点とオクルージョン領域を作り出す頂点を結ぶ直線とグリッドマップ境界が交わる点を求めていく
@@ -228,35 +238,35 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			 * オクルージョン直線の傾き < グリッドマップの縦横比　→　ポリゴン頂点が３つの三角形
 			 * オクルージョン直線の傾き > グリッドマップの縦横比　→　ポリゴン頂点が４つの四角形
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , (gridmap_.getLength().x() / 2 /max_slope) ));
+			occlusion_polygon.addVertex(grid_map::Position( (gridmap_.getLength().x() / 2) , (gridmap_.getLength().x() / 2 /max_slope) ));
 			/* ******************************************************************************************
 			 * グリッドマップの端を追加する
 			 * ------------------------------------------------------------------------------------------
 			 * X：X方向のグリッドマップの大きさ÷２
 			 * Y：Y方向のグリッドマップの大きさ÷２×−１
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , (-gridmap_.getLength().y() / 2 ) ));
+			occlusion_polygon.addVertex(grid_map::Position( (gridmap_.getLength().x() / 2) , (-gridmap_.getLength().y() / 2 ) ));
 			/* ******************************************************************************************
 			 * オクルージョン領域を作り出す頂点から引いたY軸に平行な直線とグリッドマップ境界が交わる点を求めていく
 			 * ------------------------------------------------------------------------------------------
 			 * Xの値：オクルージョン領域を作り出す頂点と同じ
 			 * Yの値：ー（グリッドマップのY軸の長さ÷２）と同じ
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (max_vertex_position_x) , (-gridmap_.getLength().y() /2 ) ));
+			occlusion_polygon.addVertex(grid_map::Position( (max_vertex_position_x) , (-gridmap_.getLength().y() /2 ) ));
 			/* ******************************************************************************************
 			 * 最後にオクルージョン領域を作り出す頂点をポリゴンに追加すればポリゴンが完成
 			 * ------------------------------------------------------------------------------------------
 			 * ３つの頂点を持つポリゴンとなる
 			 * 最低４つのaddVertex関数が必要
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x , max_vertex_position_y ));
 			}
 		// 物体が車両の右側にいる場合：傾きが正になっているはず
-		} else if ((center_width < pos_y)) {
+		} else if ((center_width_ < pos_y)) {
 			// ポリゴンのフレームIDをセット
 			occlusion_polygon.setFrameId(gridmap_.getFrameId());
 			// ポリゴン頂点を追加する（オクルージョン領域を作る頂点）
-			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x , max_vertex_position_y ));
 			// 原点と物体の角を結ぶ直線がたどり着くGridMap境界を求めてポリゴンに追加する
 			if (max_slope < aspect_ratio_gridmap) {
 			/* ******************************************************************************************
@@ -265,21 +275,21 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			 * オクルージョン直線の傾き < グリッドマップの縦横比　→　ポリゴン頂点が３つの三角形
 			 * オクルージョン直線の傾き > グリッドマップの縦横比　→　ポリゴン頂点が４つの四角形
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (gridmap_.getLength().y() / 2 * max_slope) , (gridmap_.getLength().y() / 2) ));
+			occlusion_polygon.addVertex(grid_map::Position( (gridmap_.getLength().y() / 2 * max_slope) , (gridmap_.getLength().y() / 2) ));
 			/* ******************************************************************************************
 			 * オクルージョン領域を作り出す頂点から引いたY軸に平行な直線とグリッドマップ境界が交わる点を求めていく
 			 * ------------------------------------------------------------------------------------------
 			 * Xの値：オクルージョン領域を作り出す頂点と同じ
 			 * Yの値：ー（グリッドマップのY軸の長さ÷２）と同じ
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (max_vertex_position_x) , (gridmap_.getLength().y() /2 ) ));
+			occlusion_polygon.addVertex(grid_map::Position( (max_vertex_position_x) , (gridmap_.getLength().y() /2 ) ));
 			/* ******************************************************************************************
 			 * 最後にオクルージョン領域を作り出す頂点をポリゴンに追加すればポリゴンが完成
 			 * ------------------------------------------------------------------------------------------
 			 * ３つの頂点を持つポリゴンとなる
 			 * 最低４つのaddVertex関数が必要
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x , max_vertex_position_y ));
 			} else {
 			/* ******************************************************************************************
 			 * 原点とオクルージョン領域を作り出す頂点を結ぶ直線とグリッドマップ境界が交わる点を求めていく
@@ -287,35 +297,35 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			 * オクルージョン直線の傾き < グリッドマップの縦横比　→　ポリゴン頂点が３つの三角形
 			 * オクルージョン直線の傾き > グリッドマップの縦横比　→　ポリゴン頂点が４つの四角形
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , (gridmap_.getLength().x() / 2 /max_slope) ));
+			occlusion_polygon.addVertex(grid_map::Position( (gridmap_.getLength().x() / 2) , (gridmap_.getLength().x() / 2 /max_slope) ));
 			/* ******************************************************************************************
 			 * グリッドマップの端を追加する
 			 * ------------------------------------------------------------------------------------------
 			 * X：X方向のグリッドマップの大きさ÷２
 			 * Y：Y方向のグリッドマップの大きさ÷２×−１
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , (gridmap_.getLength().y() / 2 ) ));
+			occlusion_polygon.addVertex(grid_map::Position( (gridmap_.getLength().x() / 2) , (gridmap_.getLength().y() / 2 ) ));
 			/* ******************************************************************************************
 			 * オクルージョン領域を作り出す頂点から引いたY軸に平行な直線とグリッドマップ境界が交わる点を求めていく
 			 * ------------------------------------------------------------------------------------------
 			 * Xの値：オクルージョン領域を作り出す頂点と同じ
 			 * Yの値：ー（グリッドマップのY軸の長さ÷２）と同じ
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( (max_vertex_position_x) , (gridmap_.getLength().y() /2 ) ));
+			occlusion_polygon.addVertex(grid_map::Position( (max_vertex_position_x) , (gridmap_.getLength().y() /2 ) ));
 			/* ******************************************************************************************
 			 * 最後にオクルージョン領域を作り出す頂点をポリゴンに追加すればポリゴンが完成
 			 * ------------------------------------------------------------------------------------------
 			 * ３つの頂点を持つポリゴンとなる
 			 * 最低４つのaddVertex関数が必要
 			 * **************************************************************************************** */
-			occlusion_polygon.addVertex(Position( max_vertex_position_x , max_vertex_position_y ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x , max_vertex_position_y ));
 			}
 		// 物体が車両の前方にいる場合：傾きは正と負でどちらも現れる
 		} else {
 			// ポリゴンのフレームIDをセット
 			occlusion_polygon.setFrameId(gridmap_.getFrameId());
 			// 傾きの最大値が一番大きい（正の大きさ）頂点のiteratorオブジェクトを取得する
-			max_slope_ite_positive = std::max_element(slope_center_to_vertex.begin(), slope_center_to_vertex.end());
+			std::vector<double>::iterator max_slope_ite_positive = (slope_center_to_vertex.begin(), slope_center_to_vertex.end());
 			// iteratorオブジェクトから配列のインデックスを求める
 			int max_index_vertex_positive = std::distance(slope_center_to_vertex.begin(), max_slope_ite_positive);
 			// オクルージョン領域を作る物体の頂点の座標を求めるX
@@ -323,7 +333,7 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			// オクルージョン領域を作る物体の頂点の座標を求めるY
 			double max_vertex_position_y_positive = vertex_position_y[max_index_vertex_positive];
 			// 傾きの最大値が一番大きい（負の大きさ）頂点のiteratorオブジェクトを取得する
-			max_slope_ite_negative = std::min_element(slope_center_to_vertex.begin(), slope_center_to_vertex.end());
+			std::vector<double>::iterator max_slope_ite_negative = std::min_element(slope_center_to_vertex.begin(), slope_center_to_vertex.end());
 			// iteratorオブジェクトから配列のインデックスを求める
 			int max_index_vertex_negative = std::distance(slope_center_to_vertex.begin(), max_slope_ite_negative);
 			// オクルージョン領域を作る物体の頂点の座標を求めるX
@@ -331,25 +341,25 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			// オクルージョン領域を作る物体の頂点の座標を求めるY
 			double max_vertex_position_y_negative = vertex_position_y[max_index_vertex_negative];
 			// まず車両から見えている物体の左側をポリゴンに追加する
-			occlusion_polygon.addVertex(Position( max_vertex_position_x_positive , max_vertex_position_y_positive ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x_positive , max_vertex_position_y_positive ));
 			// 次に車両から見えている物体の右側をポリゴンに追加する
-			occlusion_polygon.addVertex(Position( max_vertex_position_x_negative , max_vertex_position_y_negative ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x_negative , max_vertex_position_y_negative ));
 			// 右側から物体の奥（マップ境界）をポリゴンに追加する
-			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , max_vertex_position_y_negative ));
+			occlusion_polygon.addVertex(grid_map::Position( (gridmap_.getLength().x() / 2) , max_vertex_position_y_negative ));
 			// 左側から物体の奥（マップ境界）をポリゴンに追加する
-			occlusion_polygon.addVertex(Position( (gridmap_.getLength().x() / 2) , max_vertex_position_y_positive ));
+			occlusion_polygon.addVertex(grid_map::Position( (gridmap_.getLength().x() / 2) , max_vertex_position_y_positive ));
 			// 車両から見えている物体の左側をポリゴンに追加して終了
-			occlusion_polygon.addVertex(Position( max_vertex_position_x_positive , max_vertex_position_y_positive ));
+			occlusion_polygon.addVertex(grid_map::Position( max_vertex_position_x_positive , max_vertex_position_y_positive ));
 		}
 		bool isOcclusionOriginSet = false;
 		for (grid_map::PolygonIterator iterator(gridmap_, occlusion_polygon); 
 			!iterator.isPastEnd(); ++iterator) {
 		  if (!isOcclusionOriginSet) {
-		  map_.at("occlusion", *iterator) = 77;
+		  gridmap_.at("occlusion", *iterator) = 77;
 		  isOcclusionOriginSet = true;
 		  }
-		　// オクルージョン領域に値111を代入していく
-		  map_.at("occlusion", *iterator) = 111;
+		  // オクルージョン領域に値111を代入していく
+		  gridmap_.at("occlusion", *iterator) = 111;
 		}
 		
 	}// 検出した物体が専有領域にいる場合
@@ -537,7 +547,7 @@ void Occlusion::run()
 	// 
 	ros::spin();
 	// 
-	ROS_INFO("[%s] END",occlusion);
+	ROS_INFO("[%s] END","occlusion");
 }
 //------------------------------------------------------------------------------------------------------------
 /*

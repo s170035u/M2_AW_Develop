@@ -17,6 +17,8 @@
 #include <chrono>
 // 計算
 #include <cmath>
+// イテレータオブジェクト
+#include <algorithm>
 // ROSに必要なヘッダー
 #include <ros/ros.h>
 // 物体検出された物体の位置と大きさ
@@ -35,8 +37,6 @@
 #include <vector_map/vector_map.h>
 // 座標変換ライブラリ
 #include <tf/transform_listener.h> 
-// object_map パッケージの共有ファイル
-#include "object_map_utils.hpp"
 // これは、参照座標フレームとタイムスタンプを持つPointを表します。
 #include <geometry_msgs/PointStamped.h>
 // DetectedObject 型メッセージクラス
@@ -80,7 +80,6 @@
 //#include <message_filters/sync_policies/approximate_time.h>
 // これはROS ImageメッセージとOpenCVイメージを変換するCvBridgeを含みます。
 //#include <cv_bridge/cv_bridge.h>
-#endif
 /*******************************************************************************************
  * クラス宣言：main関数内でインスタンス化
  * -----------------------------------------------------------------------------------------
@@ -125,6 +124,7 @@ class Occlusion
 	int                                 OCCUPANCY_ROAD_OCCUPIED = 0;
 	int                                 OCCUPANCY_NO_ROAD       = 255;
 	bool                                set_map                 = false;
+	float								center_width_           = 1.5; 
 	/*******************************************************************************************
  	* 現在のインスタンスに含まれているGridMapオブジェクトを公開
  	* -----------------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ class Occlusion
 	* @param[in] OccupancyGridとして公開するレイヤーの名前
  	* 
  	********************************************************************************************/
-	void PublishGridMap(grid_map::GridMap &input_grid_map, const std::string& input_layer_for_publish)
+	void PublishGridMap(grid_map::GridMap &input_grid_map, const std::string& input_layer_for_publish);
 	/*!
 	 * コールバック関数
 	 * GridMapメッセージを受け取り、その形状、占有ビットマップを抽出します

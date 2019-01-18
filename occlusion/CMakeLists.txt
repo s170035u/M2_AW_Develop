@@ -5,7 +5,6 @@ project(occlusion)
 ## ROS上でリンクしたいライブラリのリスト    ##
 ###########################################
 find_package(catkin REQUIRED COMPONENTS
-  autoware_build_flags
   roscpp
   std_msgs
   tf
@@ -16,20 +15,19 @@ find_package(catkin REQUIRED COMPONENTS
   grid_map_cv
   grid_map_msgs
   pcl_conversions
-  waypoint_follower
   autoware_msgs 
   vector_map
 )
 find_package(Qt5Core REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
-find_package(OpenMP)
 
 #######################################################
 ## ROS上で依存しているパッケージのリストを追加すると     ##
 ## パッケージが変更された時再ビルドされる               ##
 #######################################################
 catkin_package(CATKIN_DEPENDS 
+  pcl_ros
   roscpp 
   std_msgs 
   tf 
@@ -40,9 +38,10 @@ catkin_package(CATKIN_DEPENDS
   grid_map_ros
   grid_map_cv
   grid_map_msgs
+  pcl_conversions
 )
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O3 -g -Wall ${CMAKE_CXX_FLAGS}")
 
 ####################################################################################
 ## CMake関数add_library()は、ビルドする際のライブラリを指定するために使います。        ##
@@ -69,6 +68,13 @@ target_include_directories(occlusion_lib PRIVATE
     ${PCL_INCLUDE_DIRS}
     include
 )
+target_link_libraries(occlusion_lib
+    ${OpenCV_LIBRARIES}
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+    ${Qt5Core_LIBRARIES}
+)
+
 add_dependencies(occlusion_lib
     ${catkin_EXPORTED_TARGETS}
 )
@@ -98,7 +104,6 @@ target_include_directories(occlusion PRIVATE
     include)
 
 target_link_libraries(occlusion
-    ${catkin_LIBRARIES}
     occlusion_lib
     )
 
