@@ -6,7 +6,6 @@
 int main(int argc, char **argv) {
   ros::init(argc, argv, "occlusion_potential_field");
   OcclusionPotentialField occlusion_potential_field;
-  occlusion_potential_field.init();
   occlusion_potential_field.run();
   return 0;
 }

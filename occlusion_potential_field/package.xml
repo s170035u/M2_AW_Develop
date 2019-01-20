@@ -6,6 +6,7 @@
   <maintainer email="s170035u@st.go.tuat.ac.jp">takashi nohara</maintainer>
   <license>BSD</license>
   <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>autoware_build_flags</buildtool_depend>
   <!-- C ++プログラマがROS Topics、Services、およびParametersと迅速にインターフェースできるようにするクライアントライブラリを提供 -->
   <build_depend>roscpp</build_depend>
   <!-- このパッケージは、カメラや走査型レーザー距離計など、一般的に使用されるセンサーへのメッセージを定義します。 -->
@@ -28,10 +29,13 @@
   <build_depend>tf</build_depend>
   <!-- Qt ライブラリ：QtはAutowareビルドに必要 -->
   <build_depend>qtbase5-dev</build_depend>
-  <!--  -->
+  <!-- Autowareのメッセージ -->
   <build_depend>autoware_msgs</build_depend>
+  <!-- プリミティブデータ型を表す一般的なメッセージ型や、マルチアレイなどのその他の基本的なメッセージ構成体を含む標準ROSメッセージ。 -->
   <build_depend>std_msgs</build_depend>
+  <!-- Transform -->
   <build_depend>tf</build_depend>
+  <!-- Autoware 定義のVectorMap型 -->
   <build_depend>vector_map</build_depend>
   <!-- これはROS ImageメッセージとOpenCVイメージを変換するCvBridgeをインクルード -->
   <!-- <build_depend>cv_bridge</build_depend> -->
@@ -56,6 +60,5 @@
   <run_depend>vector_map</run_depend>
 
   <export>
-
   </export>
 </package>

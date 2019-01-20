@@ -1,0 +1,3 @@
+- name: /occlusion_potential_field
+  publish: [/occlusion_potential_field, /occupancy_occlusion_potential_field]
+  subscribe: [/occlusion]

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.12)
-project(occlusion)
+project(occlusion_potential_field)
 
 ###########################################
 ## ROS上でリンクしたいライブラリのリスト    ##
@@ -48,33 +48,33 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -O3 -g -Wall ${CMAKE_CXX_FLAGS}")
 ## デフォルトで、catkinは共有ライブラリをビルドします。                               ##
 ####################################################################################
 
-# Occlusion Library
-add_library(occlusion_lib SHARED
-    include/occlusion.h
-    src/occlusion.cpp
+# Occlusion Potential Field Library
+add_library(occlusion_potential_field_lib SHARED
+    include/occlusion_potential_field.h
+    src/occlusion_potential_field.cpp
 )
 ####################################################################################
-## ターゲットを指定する前に、ターゲットのためのリソース、特にヘッダファイルおよび ##
-## ライブラリをどこで見つけることができるのかを指定する必要があります。           ##
+## ターゲットを指定する前に、ターゲットのためのリソース、特にヘッダファイルおよび        ##
+## ライブラリをどこで見つけることができるのかを指定する必要があります。                 ##
 ## Include Paths -                                                                ##
-##（一般的にC/C++の)コードをビルドするためのヘッダファイルがどこで見つけられるか  ##
+##（一般的にC/C++の)コードをビルドするためのヘッダファイルがどこで見つけられるか        ##
 ####################################################################################
 
-target_include_directories(occlusion_lib PRIVATE
+target_include_directories(occlusion_potential_field_lib PRIVATE
     ${OpenCV_INCLUDE_DIR}
     ${catkin_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     include
 )
-target_link_libraries(occlusion_lib
+target_link_libraries(occlusion_potential_field_lib
     ${OpenCV_LIBRARIES}
     ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
     ${Qt5Core_LIBRARIES}
 )
 
-add_dependencies(occlusion_lib
+add_dependencies(occlusion_potential_field_lib
     ${catkin_EXPORTED_TARGETS}
 )
 
@@ -92,21 +92,21 @@ add_dependencies(occlusion_lib
 ##################################################
 ## ノードを追加する処理 ノード実行ファイルを定義##
 ##################################################
-add_executable(occlusion
-    src/occlusion_node.cpp
+add_executable(occlusion_potential_field
+    src/occlusion_potential_field_node.cpp
 )
-target_include_directories(occlusion PRIVATE
+target_include_directories(occlusion_potential_field PRIVATE
     ${OpenCV_INCLUDE_DIR}
     ${catkin_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     include)
 
-target_link_libraries(occlusion
-    occlusion_lib
+target_link_libraries(occlusion_potential_field
+    occlusion_potential_field_lib
     )
 
-install(TARGETS occlusion
+install(TARGETS occlusion_potential_field
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

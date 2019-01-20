@@ -1,0 +1,26 @@
+<launch>
+	<!-- Occlusion が配信しているトピック名 -->
+	<arg name="occlusion_topic_src" default="occlusion" /> <!-- GridMap Road Occupancy Processor source topic -->
+	<!-- Road Occupancy Processor の GridMap クラスメッセージにおけるレイヤー名 -->
+	<arg name="occlusion_layer_name" default="occlusion" /> <!-- Name of the layer in the GridMap containing road status-->
+	<!-- Occlusion が配信する GridMapクラスメッセージにおけるレイヤー名 -->
+	<arg name="output_layer_name" default="occlusion_potential_field" /> <!-- NAme of the output layer in the GridMap-->
+	<!-- Value to fill in the occupancy grid when a cell is UNKNOWN -->
+	<arg name="road_unknown_value" default="128" />     
+	<!-- Value to fill in the occupancy grid when a cell is FREE-->
+	<arg name="road_free_value" default="75" />         
+	<!-- Value to fill in the occupancy grid when a cell is OCCUPIED-->
+	<arg name="road_occupied_value" default="0" />      
+	<!-- Value to fill in the occupancy grid when a cell is NO ROAD-->
+	<arg name="no_road_value" default="255" />   
+
+	<node name="occlusion_potential_field" pkg="occlusion_potential_field" type="occlusion_potential_field" output="screen">
+		<param name="occlusion_topic_src" value="$(arg occlusion_topic_src)" />
+		<param name="occlusion_layer_name" value="$(arg occlusion_layer_name)" />
+		<param name="output_layer_name" value="$(arg output_layer_name)" />
+		<param name="road_unknown_value" value="$(arg road_unknown_value)" />
+		<param name="road_free_value" value="$(arg road_free_value)" />
+		<param name="road_occupied_value" value="$(arg road_occupied_value)" />
+		<param name="no_road_value" value="$(arg no_road_value)" />
+	</node>
+</launch>
