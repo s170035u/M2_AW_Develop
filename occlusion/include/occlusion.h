@@ -124,7 +124,7 @@ class Occlusion
 	int                                 OCCUPANCY_ROAD_OCCUPIED = 0;
 	int                                 OCCUPANCY_NO_ROAD       = 255;
 	bool                                set_map                 = false;
-	float								center_width_           = 1.0; 
+	float								center_width_           = 0.7; 
 	/*******************************************************************************************
  	* 現在のインスタンスに含まれているGridMapオブジェクトを公開
  	* -----------------------------------------------------------------------------------------

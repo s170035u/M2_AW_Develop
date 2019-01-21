@@ -124,7 +124,7 @@ class OcclusionPotentialField
 	int                                 OCCUPANCY_ROAD_OCCUPIED = 0;
 	int                                 OCCUPANCY_NO_ROAD       = 255;
 	bool                                set_gridmap  		    = false;
-	float								center_width_           = 1.5; 
+	float								center_width_           = 1.0; 
 	
 	/*!
 	 * 現在のインスタンスに含まれているGridMapオブジェクトを公開します。

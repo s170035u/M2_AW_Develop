@@ -91,7 +91,7 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 	// 物体のY方向長さを求める
     double len_y = obj_msg->objects.at(i).dimensions.y;
 	// 自車進行方向に向かって前にある物体のみを考える
-	if ((pos_y - (len_y / 2.0)) >= 0)
+	if ((pos_y - (len_y)) >= 0)
 	{
 		continue;
 	}
@@ -483,7 +483,7 @@ void Occlusion::InitRosIo(ros::NodeHandle &in_private_handle)
 	in_private_handle.param<int>("no_road_value", OCCUPANCY_NO_ROAD, 255);
 	ROS_INFO("[%s] no_road_value: %d","occlusion", OCCUPANCY_NO_ROAD);
 	// パラメータ取得：<arg name="camera_height" default="1.5" />	
-	in_private_handle.param<float>("camera_height", camera_height_, -1.0);
+	in_private_handle.param<float>("camera_height", camera_height_, -0.7);
 	ROS_INFO("[%s] camera_height: %lf","occlusion", camera_height_);
 	/* ******************************************************************************************
 	 * サブスクライバー宣言
