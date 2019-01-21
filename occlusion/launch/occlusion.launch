@@ -14,7 +14,7 @@
 	<!-- Value to fill in the occupancy grid when a cell is NO ROAD-->
 	<arg name="no_road_value" default="255" />  
 	<!-- 地面からカメラの取り付け位置まで -->
-	<arg name="camera_height" default="1.5" />	
+	<arg name="camera_height" default="-1.0" />	
 	
 	<!-- occlusionパッケージ　：　実行ファイル名occlusion　：　ノード名occlusion　：　 -->
 	<node name="occlusion" pkg="occlusion" type="occlusion" output="screen">
