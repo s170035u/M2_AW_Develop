@@ -69,7 +69,7 @@ void OcclusionPotentialField::GridmapCallback(const grid_map_msgs::GridMap& inpu
 	// occlusionという名前のレイヤーで初期化
 	map_.add(output_layer_name_, 0.0);
 	set_gridmap = true;
-	ROS_INFO(" Map Set Done ");	
+	ROS_INFO(" Map Set Done ");
 	}
 	// データをGridMapに格納していく
 	ros::Time time = ros::Time::now();
@@ -83,6 +83,8 @@ void OcclusionPotentialField::GridmapCallback(const grid_map_msgs::GridMap& inpu
 	grid_map::Position pos_it;
 	// オクルージョン領域の面積
 	double occlusion_square_measure = 0.0;
+	double max_square_measure = 0.0;
+	double map_square_measure = map_.getLength().x() * map_.getLength().y() / 2 ;
 	/* ******************************************************************************************
 	 * ループ処理で・オクルージョン領域を生み出しているポリゴン頂点を割り出す
 	 * 　　　　　　・オクルージョン領域の面積を計算する
@@ -173,7 +175,9 @@ void OcclusionPotentialField::GridmapCallback(const grid_map_msgs::GridMap& inpu
 						// ポテンシャルフィールド座標系におけるY
 						double y_it_occlusion_axis = pos_it(1) - y_position_polygon_origin[i];
 						// ポテンシャルフィールド計算
-						map_.at(output_layer_name_, *iterator) = occlusion_square_measure /  std::hypot(x_it_occlusion_axis,y_it_occlusion_axis);
+						map_.at(output_layer_name_, *iterator) = grid_max_value_ * occlusion_square_measure / std::exp(std::hypot(x_it_occlusion_axis,y_it_occlusion_axis));
+						// 面積の
+						
 				}// grid_map::SubmapIterator 
 			}// 物体が車両進行方向左側に存在する場合
 			/* ******************************************************************************************
@@ -214,7 +218,7 @@ void OcclusionPotentialField::GridmapCallback(const grid_map_msgs::GridMap& inpu
 						// ポテンシャルフィールド座標系におけるY
 						double y_it_occlusion_axis = pos_it(1) - y_position_polygon_origin[i] ;
 						// ポテンシャルフィールド計算
-						map_.at(output_layer_name_, *iterator) = occlusion_square_measure /  std::hypot(x_it_occlusion_axis,y_it_occlusion_axis);
+						map_.at(output_layer_name_, *iterator) = grid_max_value_ * occlusion_square_measure / std::exp(std::hypot(x_it_occlusion_axis,y_it_occlusion_axis));
 				}// grid_map::SubmapIterator 
 			}// 物体が車両進行方向右側に存在する場合
 			/* ******************************************************************************************
@@ -264,11 +268,11 @@ void OcclusionPotentialField::GridmapCallback(const grid_map_msgs::GridMap& inpu
 				// 		map_.at("occlusion_potential_field", *iterator) = occlusion_square_measure /  std::hypot(x_it_occlusion_axis,y_it_occlusion_axis);
 			}// if 
 		}// オクルージョン領域の数だけループを回していく
+	}// オクルージョン領域が存在している場合if( !x_position_polygon_origin.empty() )
 	// GridMapのタイムスタンプ
 	map_.setTimestamp(time.toNSec());
 	// occlusion計算後のGridMapをパブリッシュする：引数（配信用GridMap，配信用GridMapに）
 	PublishGridMap(map_, output_layer_name_);
-	}// オクルージョン領域が存在している場合if( !x_position_polygon_origin.empty() )
 }//void OcclusionPotentialField::GridmapCallback
 
 // mainプログラム：init()
