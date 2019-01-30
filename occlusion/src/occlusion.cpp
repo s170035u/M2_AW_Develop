@@ -109,25 +109,26 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 	// 検出物体をEigen::Vector2d形式で利用するGridMapクラス"Position"に代入する
 	grid_map::Position object_position(pos_x, pos_y);
 	// gridcell_valueを初期化するGridMap外の物体は抜け出せるように数値"1.0"で初期化
-	float gridcell_value = 1.0;
+	int gridcell_value = 1;
 	// "Position"の場所にある"occupancy_road_status"レイヤーの値を取得
 	try {
-		gridcell_value = gridmap_.atPosition("occupancy_road_status",object_position);
-
-		ROS_INFO(" Try first ");	
+		gridcell_value = static_cast<int>(gridmap_.atPosition("occupancy_road_status",object_position));
+		ROS_INFO(" Try first %d ", gridcell_value);	
     } catch(std::out_of_range& exception) {
 		ROS_INFO(" exception received ");	
 		// 値が取得できない場合，GridMapないに物体は存在しないため物体検出ループを抜ける
 		continue;
+		ROS_INFO(" exception received ");
     }
-	// 検出した物体が専有領域にいない場合（＝道路でないところにある物体もしくはよくわからない物体）
-	if (!gridcell_value == 0)
+	// 検出した物体が道路でない場所にいる
+	if (gridcell_value == 255)
 	{
+		ROS_INFO(" gridcell out ");
 		// ループを抜けだし，次の物体のループへ
 		continue;
 	}
-	// 検出した物体が専有領域にいる場合
-	if (gridcell_value == 0)
+	// 検出した物体が道路にいそうな場合
+	if (gridcell_value != 255)
 	{
 		// 物体のX方向長さを求める
     	double len_x = obj_msg->objects.at(i).dimensions.x;
@@ -186,15 +187,18 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 			// Ｙ軸の最大値より大きければグリッドマップ外
 			if (fabs(vertex_position_y[j]) >= grid_y_max ){
 				out_of_range = true;
+				ROS_INFO(" out of range Y ");
 			}
 			// Ｘ軸の最大値より大きければグリッドマップ外
 			else if(fabs(vertex_position_x[j]) >= grid_x_max){
 				out_of_range = true;
+				ROS_INFO(" out of range X ");
 			}//if 
 		}// for(j)
 		// 検出した物体がマップから外れていた場合
 		if (out_of_range){
 			continue;
+			ROS_INFO(" out of range map ");
 		}// if
 		// オクルージョン領域を示すポリゴンを定義
 		grid_map::Polygon occlusion_polygon;
@@ -287,8 +291,19 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		// ポリゴンイテレータを用いて指定ポリゴン図形の形の内部で反復
 		for (grid_map::PolygonIterator iterator(gridmap_, occlusion_polygon); 
 			!iterator.isPastEnd(); ++iterator) {
-		  // オクルージョン領域に値111を代入していく
+		//int occupancy_value = 0;
+		//try {
+		//occupancy_value = gridmap_.at("occupancy_road_status",*iterator);
+		//ROS_INFO(" Got occupancy value %d ",occupancy_value);
+		//} catch(std::out_of_range& exception) {
+		//ROS_INFO(" Occupancy value is not available. exception received ");	
+		// 値が取得できない場合，GridMapないに物体は存在しないため物体検出ループを抜ける
+		//continue;
+		//}
+		//if (!occupancy_value == 255){
+		// オクルージョン領域に値111を代入していく
 		  gridmap_.at(output_layer_name_, *iterator) = 111;
+		  //}
 		}
 		// オクルージョン領域を生み出すポリゴン頂点座標
 		grid_map::Position occlusion_generate_position( max_vertex_position_x , max_vertex_position_y );
@@ -382,8 +397,20 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		// ポリゴンイテレータを用いて指定ポリゴン図形の形の内部で反復
 		for (grid_map::PolygonIterator iterator(gridmap_, occlusion_polygon); 
 			!iterator.isPastEnd(); ++iterator) {
-		  // オクルージョン領域に値111を代入していく
-		  gridmap_.at(output_layer_name_, *iterator) = 111;
+			//int occupancy_value = 0;
+			// イテレータの場所にある，occupancy_road_statusの値の取得を試みる
+			//try {
+			//occupancy_value = gridmap_.at("occupancy_road_status",*iterator);
+			//ROS_INFO(" Got occupancy value %d ",occupancy_value);	
+			//} catch(std::out_of_range& exception) {
+			//ROS_INFO(" Occupancy value is not available. exception received ");	
+			// 値が取得できない場合，GridMapないに物体は存在しないため物体検出ループを抜ける
+			//continue;
+			//}
+			//if (!occupancy_value==255){
+			// オクルージョン領域に値111を代入していく
+			gridmap_.at(output_layer_name_, *iterator) = 111;
+			//}
 		}
 		// オクルージョン領域を生み出すポリゴン頂点座標
 		grid_map::Position occlusion_generate_position( min_vertex_position_x , min_vertex_position_y );
