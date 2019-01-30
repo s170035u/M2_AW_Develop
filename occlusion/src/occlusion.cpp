@@ -120,6 +120,7 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		continue;
 		ROS_INFO(" exception received ");
     }
+
 	// 検出した物体が道路でない場所にいる
 	if (gridcell_value == 255)
 	{
@@ -291,19 +292,22 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		// ポリゴンイテレータを用いて指定ポリゴン図形の形の内部で反復
 		for (grid_map::PolygonIterator iterator(gridmap_, occlusion_polygon); 
 			!iterator.isPastEnd(); ++iterator) {
-		//int occupancy_value = 0;
-		//try {
-		//occupancy_value = gridmap_.at("occupancy_road_status",*iterator);
-		//ROS_INFO(" Got occupancy value %d ",occupancy_value);
-		//} catch(std::out_of_range& exception) {
-		//ROS_INFO(" Occupancy value is not available. exception received ");	
-		// 値が取得できない場合，GridMapないに物体は存在しないため物体検出ループを抜ける
-		//continue;
-		//}
-		//if (!occupancy_value == 255){
-		// オクルージョン領域に値111を代入していく
-		  gridmap_.at(output_layer_name_, *iterator) = 111;
-		  //}
+			
+			int occupancy_value = 1;
+			// occupancy_road_statusから値を受けとる
+			try {
+			occupancy_value = static_cast<int>(gridmap_.at("occupancy_road_status",*iterator));
+			ROS_INFO(" Occlusion Definition Check: %d ", occupancy_value);	
+    		} catch(std::out_of_range& exception) {
+			ROS_INFO(" exception received ");	
+			// 例外処理
+			continue;
+			ROS_INFO(" exception received ");
+			}
+			// 道路領域のみオクルージョン領域とする
+			if (occupancy_value != 255){
+			gridmap_.at(output_layer_name_, *iterator) = 111;
+			}
 		}
 		// オクルージョン領域を生み出すポリゴン頂点座標
 		grid_map::Position occlusion_generate_position( max_vertex_position_x , max_vertex_position_y );
@@ -397,20 +401,22 @@ void Occlusion::ObjectCallback(autoware_msgs::DetectedObjectArray::ConstPtr obj_
 		// ポリゴンイテレータを用いて指定ポリゴン図形の形の内部で反復
 		for (grid_map::PolygonIterator iterator(gridmap_, occlusion_polygon); 
 			!iterator.isPastEnd(); ++iterator) {
-			//int occupancy_value = 0;
-			// イテレータの場所にある，occupancy_road_statusの値の取得を試みる
-			//try {
-			//occupancy_value = gridmap_.at("occupancy_road_status",*iterator);
-			//ROS_INFO(" Got occupancy value %d ",occupancy_value);	
-			//} catch(std::out_of_range& exception) {
-			//ROS_INFO(" Occupancy value is not available. exception received ");	
-			// 値が取得できない場合，GridMapないに物体は存在しないため物体検出ループを抜ける
-			//continue;
-			//}
-			//if (!occupancy_value==255){
-			// オクルージョン領域に値111を代入していく
+			
+			int occupancy_value = 1;
+			// occupancy_road_statusから値を受けとる
+			try {
+			occupancy_value = static_cast<int>(gridmap_.at("occupancy_road_status",*iterator));
+			ROS_INFO(" Occlusion Definition Check: %d ", occupancy_value);	
+    		} catch(std::out_of_range& exception) {
+			ROS_INFO(" exception received ");	
+			// 例外処理
+			continue;
+			ROS_INFO(" exception received ");
+    		}
+			// 道路領域のみオクルージョン領域とする
+			if (occupancy_value != 255){
 			gridmap_.at(output_layer_name_, *iterator) = 111;
-			//}
+			}
 		}
 		// オクルージョン領域を生み出すポリゴン頂点座標
 		grid_map::Position occlusion_generate_position( min_vertex_position_x , min_vertex_position_y );
